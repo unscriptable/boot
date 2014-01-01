@@ -3,10 +3,11 @@
 /** @author John Hann */
 module.exports = fetchAsText;
 
-var fetchText = require('../lib/fetchText');
+var fetchText = require('boot').fetchText;
+var Promise = require('../lib/Promise');
 
 function fetchAsText (load) {
-	return this.Promise(function(resolve, reject) {
+	return Promise(function(resolve, reject) {
 		fetchText(load.address, resolve, reject);
 	});
 

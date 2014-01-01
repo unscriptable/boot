@@ -1,0 +1,15 @@
+{
+	"packages": {
+		"boot": {
+			"location": ".",
+			"main": "boot",
+			"config": { "loader": "curl/loader/cjsm11" }
+		},
+		"boot/lib/umd": {
+			"location": "./lib/umd"
+		}
+	},
+	"main": "boot/pipeline/_boot",
+	"excludes": { "boot/boot": 1 },
+	"output": "boot/build/_bootPipeline.js"
+}

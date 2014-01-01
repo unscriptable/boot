@@ -1,0 +1,24 @@
+{
+	"name": "boot",
+	"version": "0.0.1",
+	"description": "The easiest way to use JavaScript modules.",
+	"main": "boot",
+	"repository": {
+		"type": "git",
+		"url": "git@github.com:unscriptable/boot.git"
+	},
+	"keywords": [
+		"ES6",
+		"modules",
+		"amd",
+		"commonjs"
+	],
+	"author": "John Hann <john@unscriptable.com>",
+	"license": "MIT",
+	"devDependencies": {
+		"cram": "~0.7.10"
+	},
+	"scripts" : {
+		"build": "node node_modules/cram/cram.js --config ./build/createDefaultPipeline.json --output ./build/_bootPipeline.js"
+	}
+}

@@ -9,5 +9,6 @@ var joinPaths = path.joinPaths;
 var ensureExt = path.ensureExt;
 
 function locateNpm (load) {
+	// TODO
 	return ensureExt(joinPaths(this.baseUrl, load.name), '.js');
 }

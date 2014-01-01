@@ -1,112 +1,117 @@
 /** @license MIT License (c) copyright 2014 original authors */
 /** @author Brian Cavalier */
 /** @author John Hann */
-(function (boot, doc, globalDefine) { "use strict";
+var Loader;
+(function (exports, NativeLoader, global, amdEval) {
+"use strict";
 
-	/**
-	 * Loads the plain text file at the url provided, interprets it as JSON,
-	 * and passes the resulting value to the callback function.  If an error
-	 * occurs, the errback function is called with an Error.  If JSON is not
-	 * supported by the current environment, eval() is used.
-	 * @function
-	 * @param {string} url
-	 * @param {function (*): undefined} callback
-	 * @param {function (Error): undefined} errback
-	 */
-	boot.fetchJson = function (url, callback, errback) {
-		boot.fetchText(
-			url,
-			function (json) {
-				var value;
-				try { value = boot.fromJson(json); }
-				catch (ex) { errback(ex); return; }
-				callback(value);
+	var doc, defaultShimLoaderUrl, bootPipelineUrl, undefined;
+
+	doc = global.document;
+
+	defaultShimLoaderUrl = '//raw.github.com/ModuleLoader/es6-module-loader/master/dist/es6-module-loader.js';
+	bootPipelineUrl = './build/_bootPipeline.js';
+
+	var boot = exports || {};
+
+	boot.boot = function (options) {
+		var self = this;
+		if (NativeLoader) {
+			getBootLoader();
+		}
+		else {
+			self.installShimLoader(options, getBootLoader, failLoudly);
+		}
+		function getBootLoader () {
+			self.bootLoader(options, getMetadataFiles, failLoudly);
+		}
+		function getMetadataFiles () {
+			// TODO
+		}
+		function failLoudly (ex) { throw ex; }
+	};
+
+	boot.bootLoader = function (options, callback, errback) {
+		var loader;
+		loader = new Loader({});
+		// fetch default pipeline (in a simple amd-wrapped node bundle)
+		this.fetchSimpleAmdBundle(
+			{ url: bootPipelineUrl, loader: loader },
+			function () {
+				var pipeline = loader.get('boot/pipeline/_boot');
+				// extend loader
+				pipeline.applyTo(loader);
+				callback(loader);
 			},
 			errback
 		);
 	};
 
-	boot.fetchSimpleAmd = function (url, callback, errback) {
-		boot.fetchText(
-			url,
-			function (source) {
-				callback(globalDefine(source));
-			},
+	boot.installShimLoader = function (options, callback, errback) {
+		this.loadScript(
+			{ url: options.shimLoaderUrl, exports: 'Loader' },
+			callback,
 			errback
 		);
 	};
 
-	/**
-	 * Loads the contents of a plain text file at the url provided and passes
-	 * it to the callback function.  If an error occurs, the errback function
-	 * is called with an Error.
-	 * @function
-	 * @param {string} url
-	 * @param {function (string): undefined} callback
-	 * @param {function (Error): undefined} errback
-	 */
-	boot.fetchText = xhrFetch;
-
-	boot.fromJson = function (json) {
-		return JSON.parse(json);
-	};
-
-	/**
-	 * Initiates the boot sequence.
-	 * @function
-	 */
-	boot.boot = function () {
-		var urls, count, meta, cb, atLeastOne;
-
-		urls = metaFiles();
-		count = urls.length;
-		meta = [];
-
-		urls.forEach(function (url, i) {
-			cb = callback.bind(null, url ,i);
-			boot.fetchJson(url, cb, cb);
-		});
-
-		function callback (url, i, data) {
-			console.log('got', url, i, data);
-			meta[i] = { url: url };
-			if (!(data instanceof Error)) {
-				atLeastOne = true;
-				meta[i].data = data;
+	boot.loadScript = function (options, callback, errback) {
+		var url = options.url, exports = options.exports;
+		this.injectScript(url, exports ? exportOrFail : callback, errback);
+		function exportOrFail () {
+			if (!(exports in global)) {
+				errback(
+					new Error('"' + exports + '" not found: "' + url + '"')
+				);
 			}
-			if (--count == 0) {
-				if (atLeastOne) {
-					// TODO: apply heuristics and combine meta files
-					console.log('got some stuff', meta);
-					boot.fetchSimpleAmd(
-						boot.thisScriptUrl + '/../metadata/' + meta[0].url + '.js',
-						console.log.bind(console),
-						console.error.bind(console)
-					);
-				}
-				else {
-					// fail loudly
-					throw new Error('No meta files were found.');
-				}
-			}
+			callback(global[exports])
 		}
 	};
 
-	boot.thisScriptUrl = getScriptUrl();
+	var readyStates = { 'loaded': 1, 'complete': 1 };
 
-	function metaFiles () {
-		var urls;
-		urls = doc.documentElement.getAttribute('data-boot');
-		if (typeof urls === 'string') {
-			urls = urls.split(/\s*,\s*/);
+	boot.injectScript = function (options, callback, errback) {
+		var el, head;
+
+		el = doc.createElement('script');
+		el.onload = el.onreadystatechange = process;
+		el.onerror = fail;
+		el.type = options.mimetype || 'text/javascript';
+		el.charset = options.charset || 'utf-8';
+		el.async = !options.order;
+		el.src = options.url;
+
+		head = doc.head || doc.getElementsByTagName('head')[0];
+		head.appendChild(el);
+
+		function process (ev) {
+			ev = ev || global.event;
+			// IE6-9 need to use onreadystatechange and look for
+			// el.readyState in {loaded, complete} (yes, we need both)
+			if (ev.type === 'load' || el.readyState in readyStates) {
+				// release event listeners
+				el.onload = el.onreadystatechange = el.onerror = '';
+				callback();
+			}
 		}
-//		if (!urls) console.log('To limit HTTP requests, use <html data-boot="app.json">');
-		// if not specified, look for all known meta files
-		return urls || ['app.json', 'bower.json', 'package.json'];
-	}
 
-	function xhrFetch (url, callback, errback) {
-		var xhr, msg;
+		function fail () {
+			errback(new Error('Syntax or http error: ' + options.url));
+		}
+
+	};
+
+	boot.fetchSimpleAmdBundle = function (options, callback, errback) {
+		var define = this.simpleDefine(options.loader);
+		this.fetchText(options.url, evalOrFail, errback);
+		function evalOrFail (source) {
+			try { callback(amdEval(define, source)); }
+			catch (ex) { errback(ex); }
+		}
+	};
+
+	boot.fetchText = function (url, callback, errback) {
+		var xhr;
 		xhr = new XMLHttpRequest();
 		xhr.open('GET', url, true);
 		xhr.onreadystatechange = function () {
@@ -115,38 +120,50 @@
 					callback(xhr.responseText);
 				}
 				else {
-					msg = url + ' fetch failed. status: '
-						+ xhr.status + ' - ' + xhr.statusText;
-					errback(new Error(msg));
+					errback(
+						new Error('fetchText() failed. status: '
+						+ xhr.status + ' - '
+						+ xhr.statusText)
+					);
 				}
 			}
 		};
 		xhr.send(null);
-	}
+	};
 
-	function getScriptUrl () {
-		var stack, matches;
+	boot.mergeBrowserOptions = function (options) {
+		var html = doc.documentElement;
+		options.bootFiles = html.getAttribute('data-boot');
+		options.shimLoaderUrl = html.getAttribute('data-loader-url') || defaultShimLoaderUrl;
+		return options;
+	};
 
-		// HTML5 way
-		if (doc.currentScript) return doc.currentScript.src;
+	boot.simpleDefine = function (loader) {
+		return function (id, deps, factory) {
+			var scoped, modules, i, len;
+			scoped = {
+				require: require,
+				exports: {},
+				global: loader.global
+			};
+			scoped.module = { exports: scoped.exports };
+			modules = [];
+			for (i = 0, len = deps.length; i < len; i++) {
+				modules[i] = deps[i] in scoped
+					? scoped[deps[i]]
+					: scoped.require(deps[i]);
+			}
+			// eager instantiation
+			return factory.apply(null, modules);
+		};
+		function require (id) { return loader.get(id); }
+	};
 
-		// From https://gist.github.com/cphoover/6228063
-		// (Note: Ben Alman's shortcut doesn't work everywhere.)
-		// TODO: see if stack trace trick works in IE8+.
-		// Otherwise, loop to find script.readyState == 'interactive'.
-		stack = '';
-		try { throw new Error(); } catch (ex) { stack = ex.stack; }
-		matches = stack.match(/(?:http:|https:|file:|\/).*?\.js/);
-
-		return matches && matches[0];
-	}
-
-	boot.boot();
+	function noop () {}
 
 }(
-	typeof _exports !== 'undefined' ? _exports : {},
-	document,
-	// use Function constructor to stop minification from renaming 'define'
-	new Function('define', 'return eval(arguments[1])')
-		.bind(null, function (f) { return f; })
+	typeof exports !== 'undefined' && exports,
+	typeof Loader !== 'undefined' && Loader,
+	typeof global !== 'undefined' ? global : this,
+	Function('define', 'return eval(arguments[1])')
 ));
