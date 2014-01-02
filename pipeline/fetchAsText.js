@@ -4,10 +4,10 @@
 module.exports = fetchAsText;
 
 var fetchText = require('boot').fetchText;
-var Promise = require('../lib/Promise');
+var Thenable = require('../lib/Thenable');
 
 function fetchAsText (load) {
-	return Promise(function(resolve, reject) {
+	return Thenable(function(resolve, reject) {
 		fetchText(load.address, resolve, reject);
 	});
 
