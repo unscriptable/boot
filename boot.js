@@ -5,14 +5,19 @@ var Loader;
 (function (exports, NativeLoader, global, amdEval) {
 "use strict";
 
-	var doc, defaultShimLoaderUrl, bootPipelineUrl, undefined;
+	var boot, document, options;
 
-	doc = global.document;
+	boot = exports || {};
 
-	defaultShimLoaderUrl = '//raw.github.com/ModuleLoader/es6-module-loader/master/dist/es6-module-loader.js';
-	bootPipelineUrl = './build/_bootPipeline.js';
+	document = global.document;
 
-	var boot = exports || {};
+	boot.scriptUrl = getCurrentScript();
+
+	options = {
+		shimUrl: '//raw.github.com/ModuleLoader/es6-module-loader/master/dist/es6-module-loader.js',
+		bootFiles: 'app.json,bower.json,package.json',
+		pipelineUrl: boot.scriptUrl + '/' + './build/_bootPipeline.js'
+	};
 
 	boot.boot = function (options) {
 		var self = this;
@@ -26,7 +31,8 @@ var Loader;
 			self.bootLoader(options, getMetadataFiles, failLoudly);
 		}
 		function getMetadataFiles () {
-			// TODO
+			var urls = options.bootFiles.split(/\s*,\s*/);
+			// TODO: add .json parsing to _boot pipeline
 		}
 		function failLoudly (ex) { throw ex; }
 	};
@@ -36,7 +42,7 @@ var Loader;
 		loader = new Loader({});
 		// fetch default pipeline (in a simple amd-wrapped node bundle)
 		this.fetchSimpleAmdBundle(
-			{ url: bootPipelineUrl, loader: loader },
+			{ url: options.pipelineUrl, loader: loader },
 			function () {
 				var pipeline = loader.get('boot/pipeline/_boot');
 				// extend loader
@@ -49,7 +55,7 @@ var Loader;
 
 	boot.installShimLoader = function (options, callback, errback) {
 		this.loadScript(
-			{ url: options.shimLoaderUrl, exports: 'Loader' },
+			{ url: options.shimUrl, exports: 'Loader' },
 			callback,
 			errback
 		);
@@ -73,7 +79,7 @@ var Loader;
 	boot.injectScript = function (options, callback, errback) {
 		var el, head;
 
-		el = doc.createElement('script');
+		el = document.createElement('script');
 		el.onload = el.onreadystatechange = process;
 		el.onerror = fail;
 		el.type = options.mimetype || 'text/javascript';
@@ -81,7 +87,7 @@ var Loader;
 		el.async = !options.order;
 		el.src = options.url;
 
-		head = doc.head || doc.getElementsByTagName('head')[0];
+		head = document.head || document.getElementsByTagName('head')[0];
 		head.appendChild(el);
 
 		function process (ev) {
@@ -132,9 +138,9 @@ var Loader;
 	};
 
 	boot.mergeBrowserOptions = function (options) {
-		var html = doc.documentElement;
-		options.bootFiles = html.getAttribute('data-boot');
-		options.shimLoaderUrl = html.getAttribute('data-loader-url') || defaultShimLoaderUrl;
+		var el = document.documentElement;
+		options.bootFiles = el.getAttribute('data-boot') || options.bootFiles;
+		options.shimUrl = el.getAttribute('data-loader-url') || options.shimUrl;
 		return options;
 	};
 
@@ -159,7 +165,26 @@ var Loader;
 		function require (id) { return loader.get(id); }
 	};
 
-	function noop () {}
+	if (!exports) {
+		boot.boot(boot.mergeBrowserOptions(options));
+	}
+
+	function getCurrentScript () {
+		var stack, matches;
+
+		// HTML5 way
+		if (document && document.currentScript) return document.currentScript.src;
+
+		// From https://gist.github.com/cphoover/6228063
+		// (Note: Ben Alman's shortcut doesn't work everywhere.)
+		// TODO: see if stack trace trick works in IE8+.
+		// Otherwise, loop to find script.readyState == 'interactive'.
+		stack = '';
+		try { throw new Error(); } catch (ex) { stack = ex.stack; }
+		matches = stack.match(/(?:http:|https:|file:|\/).*?\.js/);
+
+		return matches && matches[0];
+	}
 
 }(
 	typeof exports !== 'undefined' && exports,
