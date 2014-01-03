@@ -16,7 +16,7 @@ var Loader;
 	options = {
 		shimUrl: '//raw.github.com/ModuleLoader/es6-module-loader/master/dist/es6-module-loader.js',
 		bootFiles: 'app.json,bower.json,package.json',
-		pipelineUrl: boot.scriptUrl + '/' + './build/_bootPipeline.js'
+		pipelineUrl: boot.scriptUrl + '/' + '../build/_bootPipeline.js'
 	};
 
 	boot.boot = function (options) {
@@ -38,15 +38,22 @@ var Loader;
 	};
 
 	boot.bootLoader = function (options, callback, errback) {
-		var loader;
+		var loader, _set, _get;
 		loader = new Loader({});
+		_set = this.legacySetter(loader);
+		_get = this.legacyGetter(loader);
+		// Expose boot.js as a module (Note: this doesn't seem like the
+		// appropriate place to do this, but it must be done before loading
+		// the pipeline.)
+		_set('boot/boot', this);
+		_set('boot', this);
 		// fetch default pipeline (in a simple amd-wrapped node bundle)
 		this.fetchSimpleAmdBundle(
 			{ url: options.pipelineUrl, loader: loader },
 			function () {
-				var pipeline = loader.get('boot/pipeline/_boot');
+				var pipeline = _get('boot/pipeline/_boot');
 				// extend loader
-				pipeline.applyTo(loader);
+				pipeline().applyTo(loader);
 				callback(loader);
 			},
 			errback
@@ -62,8 +69,8 @@ var Loader;
 	};
 
 	boot.loadScript = function (options, callback, errback) {
-		var url = options.url, exports = options.exports;
-		this.injectScript(url, exports ? exportOrFail : callback, errback);
+		var exports = options.exports;
+		this.injectScript(options, exports ? exportOrFail : callback, errback);
 		function exportOrFail () {
 			if (!(exports in global)) {
 				errback(
@@ -108,11 +115,17 @@ var Loader;
 	};
 
 	boot.fetchSimpleAmdBundle = function (options, callback, errback) {
-		var define = this.simpleDefine(options.loader);
+		var _define, _store;
+		_define = this.simpleDefine(options.loader);
+		_store = this.legacySetter(options.loader);
 		this.fetchText(options.url, evalOrFail, errback);
 		function evalOrFail (source) {
-			try { callback(amdEval(define, source)); }
+			try { callback(amdEval(storeInRegistry, source)); }
 			catch (ex) { errback(ex); }
+		}
+		function storeInRegistry (id, deps, factory) {
+			var value = _define(id, deps, factory);
+			_store(id, value);
 		}
 	};
 
@@ -127,9 +140,10 @@ var Loader;
 				}
 				else {
 					errback(
-						new Error('fetchText() failed. status: '
-						+ xhr.status + ' - '
-						+ xhr.statusText)
+						new Error(
+							'fetchText() failed. url: "' + url
+							+ '" status: ' + xhr.status + ' - ' + xhr.statusText
+						)
 					);
 				}
 			}
@@ -145,12 +159,18 @@ var Loader;
 	};
 
 	boot.simpleDefine = function (loader) {
+		// TODO: have this return {id, deps, factory} instead of eagerly instantiating
+		var _global, _require;
+		// temporary work-around for es6-module-loader which throws when
+		// accessing loader.global
+		try { _global = loader.global } catch (ex) { _global = global; }
+		_require = this.legacyGetter(loader);
 		return function (id, deps, factory) {
 			var scoped, modules, i, len;
 			scoped = {
-				require: require,
+				require: _require,
 				exports: {},
-				global: loader.global
+				global: _global
 			};
 			scoped.module = { exports: scoped.exports };
 			modules = [];
@@ -159,10 +179,37 @@ var Loader;
 					? scoped[deps[i]]
 					: scoped.require(deps[i]);
 			}
-			// eager instantiation
-			return factory.apply(null, modules);
+			// eager instantiation. assume commonjs-wrapped
+			factory.apply(null, modules);
+			return scoped.module.exports;
 		};
-		function require (id) { return loader.get(id); }
+	};
+
+	boot.legacySetter = function (loader) {
+		return function (id, module) {
+			var wrapped = {
+				// for real ES6 modules to consume this module
+				'default': module,
+				// for modules transpiled from ES6
+				__es6Module: module
+			};
+			// TODO: remove `new` when fixed in es6-module-loader
+			loader.set(id, new Module(wrapped));
+		};
+	};
+
+	boot.legacyGetter = function (loader) {
+		return function (id) {
+			var wrapped = loader.get(id);
+			if (wrapped && wrapped.__es6Module) {
+				return wrapped.__es6Module;
+			}
+			else {
+				// TODO: es6-module-transpiler handles this differently
+				// https://github.com/square/es6-module-transpiler/issues/85#issuecomment-30961158
+				return wrapped;
+			}
+		};
 	};
 
 	if (!exports) {

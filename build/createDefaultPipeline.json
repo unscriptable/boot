@@ -10,6 +10,7 @@
 		}
 	},
 	"main": "boot/pipeline/_boot",
+	"update_cram_then_use_this:excludes": [ "boot/boot" ],
 	"excludes": { "boot/boot": 1 },
 	"output": "boot/build/_bootPipeline.js"
 }

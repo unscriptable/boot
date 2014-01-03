@@ -1,21 +1,27 @@
 /** @license MIT License (c) copyright 2014 original authors */
 /** @author Brian Cavalier */
 /** @author John Hann */
-var nodePipeline = require('./node');
+var normalizeCjs = require('./normalizeCjs');
+var locateAsIs = require('./locateAsIs');
+var fetchAsText = require('./fetchAsText');
+var translateAsIs = require('./translateAsIs');
+var instantiateNode = require('./instantiateNode');
 var overrideIf = require('../lib/overrideIf');
 
 module.exports = function () {
-	var defaultPipeline = {};
-
-	for (var p in nodePipeline) {
-		defaultPipeline[p] = nodePipeline[p];
-	}
-
-	defaultPipeline.applyTo = function (loader) {
-		overrideIf(loader, isBootModule, defaultPipeline);
+	var pipeline = {
+		normalize: normalizeCjs,
+		locate: locateAsIs,
+		fetch: fetchAsText,
+		translate: translateAsIs,
+		instantiate: instantiateNode
 	};
 
-	return defaultPipeline;
+	pipeline.applyTo = function (loader) {
+		overrideIf(loader, isBootModule, pipeline);
+	};
+
+	return pipeline;
 };
 
 function isBootModule (arg) {
