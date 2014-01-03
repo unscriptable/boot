@@ -3,8 +3,12 @@
 /** @author John Hann */
 module.exports = instantiateScript;
 
-function instantiateScript (load) {
-	return void globalEval(load.source);
-}
+var globalFactory = require('../lib/globalFactory');
 
-function globalEval () { (1, eval)(arguments[0]); }
+function instantiateScript (load) {
+	return {
+		execute: function () {
+			return new Module(globalFactory(load.source));
+		}
+	};
+}

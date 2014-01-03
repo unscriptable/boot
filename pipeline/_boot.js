@@ -5,11 +5,15 @@ var normalizeCjs = require('./normalizeCjs');
 var locateAsIs = require('./locateAsIs');
 var fetchAsText = require('./fetchAsText');
 var translateAsIs = require('./translateAsIs');
+var translateWrapObjectLiteral = require('./translateWrapObjectLiteral');
 var instantiateNode = require('./instantiateNode');
+var instantiateScript = require('./instantiateScript');
 var overrideIf = require('../lib/overrideIf');
 
 module.exports = function () {
-	var pipeline = {
+	var modulePipeline, jsonPipeline;
+
+	modulePipeline = {
 		normalize: normalizeCjs,
 		locate: locateAsIs,
 		fetch: fetchAsText,
@@ -17,11 +21,20 @@ module.exports = function () {
 		instantiate: instantiateNode
 	};
 
-	pipeline.applyTo = function (loader) {
-		overrideIf(loader, isBootModule, pipeline);
+	jsonPipeline = {
+		normalize: normalizeCjs,
+		locate: locateAsIs,
+		fetch: fetchAsText,
+		translate: translateWrapObjectLiteral,
+		instantiate: instantiateScript
 	};
 
-	return pipeline;
+	return {
+		applyTo: function (loader) {
+			overrideIf(loader, isBootModule, modulePipeline);
+			overrideIf(loader, isJsonFile, jsonPipeline);
+		}
+	};
 };
 
 function isBootModule (arg) {
@@ -29,10 +42,19 @@ function isBootModule (arg) {
 	// Pipeline functions typically receive an object with a normalized name,
 	// but the normalize function takes an unnormalized name and a normalized
 	// referrer name.
-	moduleId = typeof arg === 'object'
-		? arg.name
-		: arg.charAt(0) === '.' ? arguments[1] : arg;
+	moduleId = getModuleId(arg);
+	if (moduleId.charAt(0) === '.') moduleId = arguments[1];
 	packageId = moduleId.split('/')[0];
 	return packageId === 'boot';
 }
 
+function isJsonFile (arg) {
+	var moduleId, ext;
+	moduleId = getModuleId(arg);
+	ext = moduleId.split('.').pop();
+	return ext === 'json';
+}
+
+function getModuleId (arg) {
+	return typeof arg === 'object' ? arg.name : arg;
+}
