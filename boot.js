@@ -14,7 +14,9 @@ var Loader;
 	boot.scriptUrl = getCurrentScript();
 
 	options = {
-		shimUrl: '//raw.github.com/ModuleLoader/es6-module-loader/master/dist/es6-module-loader.js',
+		// TODO: switch to dist when es6-module-loader seems stable
+//		shimUrl: '//raw.github.com/ModuleLoader/es6-module-loader/master/dist/es6-module-loader.js',
+		shimUrl: '//raw.github.com/ModuleLoader/es6-module-loader/master/lib/es6-module-loader.js',
 		bootFiles: 'app.json,bower.json,package.json',
 		pipelineUrl: boot.scriptUrl + '/' + '../build/_bootPipeline.js'
 	};
@@ -30,9 +32,22 @@ var Loader;
 		function getBootLoader () {
 			self.bootLoader(options, getMetadataFiles, failLoudly);
 		}
-		function getMetadataFiles () {
-			var urls = options.bootFiles.split(/\s*,\s*/);
-			// TODO: add .json parsing to _boot pipeline
+		function getMetadataFiles (loader) {
+			var urls, files, howMany, i;
+			urls = options.bootFiles.split(/\s*,\s*/);
+			files = [];
+			howMany = urls.length
+			for (i = 0; i < howMany; i++) {
+				loader.import(urls[i]).then(collect.bind(null, i));
+			}
+			function collect (i, value) {
+				files[i] = value;
+				if (--howMany === 0) done();
+			}
+			function done () {
+				// TODO: do something meaningful here
+				console.log(files);
+			}
 		}
 		function failLoudly (ex) { throw ex; }
 	};
@@ -49,11 +64,11 @@ var Loader;
 		_set('boot', this);
 		// fetch default pipeline (in a simple amd-wrapped node bundle)
 		this.fetchSimpleAmdBundle(
-			{ url: options.pipelineUrl, loader: loader },
+			{ url: options.pipelineUrl, loader: loader, debug: options.debug },
 			function () {
 				var pipeline = _get('boot/pipeline/_boot');
 				// extend loader
-				pipeline().applyTo(loader);
+				pipeline(options).applyTo(loader);
 				callback(loader);
 			},
 			errback
@@ -120,6 +135,12 @@ var Loader;
 		_store = this.legacySetter(options.loader);
 		this.fetchText(options.url, evalOrFail, errback);
 		function evalOrFail (source) {
+			if (options.debug) {
+				// TODO: consider reusing this with lib/addSourceUrl
+				source += '\n/*\n//@ sourceURL='
+					+ options.url.replace(/\s/g, '%20')
+					+ '\n*/\n';
+			}
 			try { callback(amdEval(storeInRegistry, source)); }
 			catch (ex) { errback(ex); }
 		}
@@ -155,6 +176,7 @@ var Loader;
 		var el = document.documentElement;
 		options.bootFiles = el.getAttribute('data-boot') || options.bootFiles;
 		options.shimUrl = el.getAttribute('data-loader-url') || options.shimUrl;
+		options.debug = el.hasAttribute('data-boot-debug');
 		return options;
 	};
 
@@ -193,7 +215,7 @@ var Loader;
 				// for modules transpiled from ES6
 				__es6Module: module
 			};
-			// TODO: remove `new` when fixed in es6-module-loader
+			// TODO: spec is ambiguous whether Module is a constructor or factory
 			loader.set(id, new Module(wrapped));
 		};
 	};
@@ -225,7 +247,7 @@ var Loader;
 		// From https://gist.github.com/cphoover/6228063
 		// (Note: Ben Alman's shortcut doesn't work everywhere.)
 		// TODO: see if stack trace trick works in IE8+.
-		// Otherwise, loop to find script.readyState == 'interactive'.
+		// Otherwise, loop to find script.readyState == 'interactive' in IE.
 		stack = '';
 		try { throw new Error(); } catch (ex) { stack = ex.stack; }
 		matches = stack.match(/(?:http:|https:|file:|\/).*?\.js/);

@@ -11,7 +11,7 @@ function instantiateNode (load) {
 
 	load.loader = this;
 	load.deps = findRequires(load.source);
-	factory = nodeFactory(load);
+	factory = nodeFactory(this, load);
 
 	return {
 		deps: load.deps,

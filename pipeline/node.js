@@ -7,7 +7,7 @@ var fetchAsText = require('./fetchAsText');
 var translateAsIs = require('./translateAsIs');
 var instantiateNode = require('./instantiateNode');
 
-module.exports = function () {
+module.exports = function (options) {
 	return {
 		normalize: normalizeCjs,
 		locate: locateNpm,

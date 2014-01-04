@@ -11,18 +11,6 @@ function locateAsIs (load) {
 });
 
 
-;define('boot/pipeline/translateWrapObjectLiteral', ['require', 'exports', 'module'], function (require, exports, module) {/** @license MIT License (c) copyright 2014 original authors */
-/** @author Brian Cavalier */
-/** @author John Hann */
-module.exports = translateWrapObjectLiteral;
-
-function translateWrapObjectLiteral (load) {
-	return '(' + load.source + ')';
-}
-
-});
-
-
 ;define('boot/pipeline/translateAsIs', ['require', 'exports', 'module'], function (require, exports, module) {/** @license MIT License (c) copyright 2014 original authors */
 /** @author Brian Cavalier */
 /** @author John Hann */
@@ -30,6 +18,19 @@ module.exports = translateAsIs;
 
 function translateAsIs (load) {
 	return load.source;
+}
+
+});
+
+
+;define('boot/pipeline/translateWrapObjectLiteral', ['require', 'exports', 'module'], function (require, exports, module) {/** @license MIT License (c) copyright 2014 original authors */
+/** @author Brian Cavalier */
+/** @author John Hann */
+module.exports = translateWrapObjectLiteral;
+
+function translateWrapObjectLiteral (load) {
+	// The \n allows for a comment on the last line!
+	return '(' + load.source + '\n)';
 }
 
 });
@@ -53,163 +54,6 @@ function override (orig, predicate, method) {
 		return predicate.apply(this, arguments)
 			? method.apply(this, arguments)
 			: orig.apply(this, arguments);
-	};
-}
-
-});
-
-
-;define('boot/lib/Thenable', ['require', 'exports', 'module'], function (require, exports, module) {/** @license MIT License (c) copyright 2014 original authors */
-/** @author Brian Cavalier */
-/** @author John Hann */
-module.exports = Thenable;
-
-function Thenable (resolver) {
-	var then, nextFulfill, nextReject;
-
-	then = push;
-	resolver(fulfill, reject);
-
-	return {
-		then: function (onFulfill, onReject) {
-			return then(onFulfill, onReject);
-		}
-	};
-
-	function push (onFulfill, onReject) {
-		return new Thenable(function (childFulfill, childReject) {
-			nextFulfill = function (value) {
-				tryBoth(value, onFulfill, onReject)
-					&& tryBoth(value, childFulfill, childReject);
-			};
-			nextReject = function (ex) {
-				tryBoth(ex, onReject, failLoud)
-					 && tryBoth(ex, childReject, failLoud);
-			};
-		});
-	}
-
-	function fulfill (value) {
-		then = fulfiller(value);
-		if (nextFulfill) nextFulfill(value);
-	}
-
-	function reject (ex) {
-		then = rejecter(ex);
-		if (nextReject) nextReject(ex);
-	}
-}
-
-function fulfiller (value) {
-	return function (onFulfill, onReject) {
-		onFulfill(value);
-		return this;
-	};
-}
-
-function rejecter (value) {
-	return function (onFulfill, onReject) {
-		onReject(value);
-		return this;
-	};
-}
-
-function tryBoth (value, first, second) {
-	try {
-		first(value);
-		return true;
-	}
-	catch (ex) {
-		second(ex);
-	}
-}
-
-function failLoud (ex) {
-	throw ex;
-}
-
-
-});
-
-
-;define('boot/lib/findRequires', ['require', 'exports', 'module'], function (require, exports, module) {/** @license MIT License (c) copyright 2014 original authors */
-/** @author Brian Cavalier */
-/** @author John Hann */
-module.exports = findRequires;
-
-var removeCommentsRx, findRValueRequiresRx;
-
-removeCommentsRx = /\/\*[\s\S]*?\*\/|\/\/.*?[\n\r]/g;
-findRValueRequiresRx = /require\s*\(\s*(["'])(.*?[^\\])\1\s*\)|[^\\]?(["'])/g;
-
-function findRequires (source) {
-	var deps, seen, clean, currQuote;
-
-	deps = [];
-	seen = {};
-
-	// remove comments, then look for require() or quotes
-	clean = source.replace(removeCommentsRx, '');
-	clean.replace(findRValueRequiresRx, function (m, rq, id, qq) {
-		// if we encounter a string in the source, don't look for require()
-		if (qq) {
-			currQuote = currQuote == qq ? false : currQuote;
-		}
-		// if we're not inside a quoted string
-		else if (!currQuote) {
-			// push [relative] id into deps list and seen map
-			if (!(id in seen)) {
-				seen[id] = true;
-				deps.push(id)
-			}
-		}
-		return ''; // uses least RAM/CPU
-	});
-
-	return deps;
-}
-
-});
-
-
-;define('boot/lib/nodeFactory', ['require', 'exports', 'module'], function (require, exports, module) {/** @license MIT License (c) copyright 2014 original authors */
-/** @author Brian Cavalier */
-/** @author John Hann */
-module.exports = nodeFactory;
-
-var nodeEval = new Function(
-	'require', 'exports', 'module', 'global',
-	'eval(arguments[4]);'
-);
-
-function nodeFactory (loader, load) {
-	var require, module;
-
-	require = function (id) {
-		var abs = loader.normalize(id, load.name);
-		return loader.get(abs);
-	};
-	module = { id: load.name, uri: load.address, exports: {} };
-
-	return function () {
-		nodeEval(require, module.exports, module, loader.global, load.source);
-		return module.exports;
-	};
-}
-
-});
-
-
-;define('boot/lib/globalFactory', ['require', 'exports', 'module'], function (require, exports, module) {/** @license MIT License (c) copyright 2014 original authors */
-/** @author Brian Cavalier */
-/** @author John Hann */
-module.exports = globalFactory;
-
-var globalEval = new Function('eval(arguments[0]);');
-
-function globalFactory (loader, load) {
-	return function () {
-		return globalEval(load.source);
 	};
 }
 
@@ -333,6 +177,194 @@ function reduceLeadingDots (childId, baseId) {
 });
 
 
+;define('boot/lib/Thenable', ['require', 'exports', 'module'], function (require, exports, module) {/** @license MIT License (c) copyright 2014 original authors */
+/** @author Brian Cavalier */
+/** @author John Hann */
+module.exports = Thenable;
+
+function Thenable (resolver) {
+	var then, nextFulfill, nextReject;
+
+	then = push;
+	resolver(fulfill, reject);
+
+	return {
+		then: function (onFulfill, onReject) {
+			return then(onFulfill, onReject);
+		}
+	};
+
+	function push (onFulfill, onReject) {
+		return new Thenable(function (childFulfill, childReject) {
+			nextFulfill = function (value) {
+				tryBoth(value, onFulfill, onReject)
+					&& tryBoth(value, childFulfill, childReject);
+			};
+			nextReject = function (ex) {
+				tryBoth(ex, onReject, failLoud)
+					 && tryBoth(ex, childReject, failLoud);
+			};
+		});
+	}
+
+	function fulfill (value) {
+		then = fulfiller(value);
+		if (nextFulfill) nextFulfill(value);
+	}
+
+	function reject (ex) {
+		then = rejecter(ex);
+		if (nextReject) nextReject(ex);
+	}
+}
+
+function fulfiller (value) {
+	return function (onFulfill, onReject) {
+		onFulfill(value);
+		return this;
+	};
+}
+
+function rejecter (value) {
+	return function (onFulfill, onReject) {
+		onReject(value);
+		return this;
+	};
+}
+
+function tryBoth (value, first, second) {
+	try {
+		first(value);
+		return true;
+	}
+	catch (ex) {
+		second(ex);
+	}
+}
+
+function failLoud (ex) {
+	throw ex;
+}
+
+
+});
+
+
+;define('boot/lib/findRequires', ['require', 'exports', 'module'], function (require, exports, module) {/** @license MIT License (c) copyright 2014 original authors */
+/** @author Brian Cavalier */
+/** @author John Hann */
+module.exports = findRequires;
+
+var removeCommentsRx, findRValueRequiresRx;
+
+removeCommentsRx = /\/\*[\s\S]*?\*\/|\/\/.*?[\n\r]/g;
+findRValueRequiresRx = /require\s*\(\s*(["'])(.*?[^\\])\1\s*\)|[^\\]?(["'])/g;
+
+function findRequires (source) {
+	var deps, seen, clean, currQuote;
+
+	deps = [];
+	seen = {};
+
+	// remove comments, then look for require() or quotes
+	clean = source.replace(removeCommentsRx, '');
+	clean.replace(findRValueRequiresRx, function (m, rq, id, qq) {
+		// if we encounter a string in the source, don't look for require()
+		if (qq) {
+			currQuote = currQuote == qq ? false : currQuote;
+		}
+		// if we're not inside a quoted string
+		else if (!currQuote) {
+			// push [relative] id into deps list and seen map
+			if (!(id in seen)) {
+				seen[id] = true;
+				deps.push(id)
+			}
+		}
+		return ''; // uses least RAM/CPU
+	});
+
+	return deps;
+}
+
+});
+
+
+;define('boot/lib/addSourceUrl', ['require', 'exports', 'module'], function (require, exports, module) {/** @license MIT License (c) copyright 2014 original authors */
+/** @author Brian Cavalier */
+/** @author John Hann */
+module.exports = addSourceUrl;
+
+function addSourceUrl (url, source) {
+	return source
+		+ '\n/*\n//@ sourceURL='
+		+ url.replace(/\s/g, '%20')
+		+ '\n*/\n';
+}
+
+});
+
+
+;define('boot/lib/nodeFactory', ['require', 'exports', 'module'], function (require, exports, module) {/** @license MIT License (c) copyright 2014 original authors */
+/** @author Brian Cavalier */
+/** @author John Hann */
+module.exports = nodeFactory;
+
+var nodeEval = new Function(
+	'require', 'exports', 'module', 'global',
+	'eval(arguments[4]);'
+);
+
+function nodeFactory (loader, load) {
+	var require, module;
+
+	require = function (id) {
+		var abs = loader.normalize(id, load.name);
+		return loader.get(abs);
+	};
+	module = { id: load.name, uri: load.address, exports: {} };
+
+	return function () {
+		nodeEval(require, module.exports, module, loader.global, load.source);
+		return module.exports;
+	};
+}
+
+});
+
+
+;define('boot/lib/globalFactory', ['require', 'exports', 'module'], function (require, exports, module) {/** @license MIT License (c) copyright 2014 original authors */
+/** @author Brian Cavalier */
+/** @author John Hann */
+module.exports = globalFactory;
+
+var globalEval = new Function('return eval(arguments[0]);');
+
+function globalFactory (loader, load) {
+	return function () {
+		return globalEval(load.source);
+	};
+}
+
+});
+
+
+;define('boot/pipeline/normalizeCjs', ['require', 'exports', 'module', 'boot/lib/path'], function (require, exports, module, $cram_r0) {/** @license MIT License (c) copyright 2014 original authors */
+/** @author Brian Cavalier */
+/** @author John Hann */
+var path = $cram_r0;
+
+module.exports = normalizeCjs;
+
+var reduceLeadingDots = path.reduceLeadingDots;
+
+function normalizeCjs (name, refererName, refererUrl) {
+	return reduceLeadingDots(String(name), refererName || '');
+}
+
+});
+
+
 ;define('boot/pipeline/fetchAsText', ['require', 'exports', 'module', 'boot/boot', 'boot/lib/Thenable'], function (require, exports, module, $cram_r0, $cram_r1) {/** @license MIT License (c) copyright 2014 original authors */
 /** @author Brian Cavalier */
 /** @author John Hann */
@@ -364,7 +396,7 @@ function instantiateNode (load) {
 
 	load.loader = this;
 	load.deps = findRequires(load.source);
-	factory = nodeFactory(load);
+	factory = nodeFactory(this, load);
 
 	return {
 		deps: load.deps,
@@ -372,6 +404,20 @@ function instantiateNode (load) {
 			return new Module(factory.apply(this, arguments));
 		}
 	};
+}
+
+});
+
+
+;define('boot/pipeline/translateForDebug', ['require', 'exports', 'module', 'boot/lib/addSourceUrl'], function (require, exports, module, $cram_r0) {/** @license MIT License (c) copyright 2014 original authors */
+/** @author Brian Cavalier */
+/** @author John Hann */
+module.exports = translateForDebug;
+
+var addSourceUrl = $cram_r0;
+
+function translateForDebug (load) {
+	return addSourceUrl(load.address, load.source);
 }
 
 });
@@ -385,9 +431,10 @@ module.exports = instantiateScript;
 var globalFactory = $cram_r0;
 
 function instantiateScript (load) {
+	var factory = globalFactory(this, load);
 	return {
 		execute: function () {
-			return new Module(globalFactory(load.source));
+			return new Module(factory());
 		}
 	};
 }
@@ -395,42 +442,31 @@ function instantiateScript (load) {
 });
 
 
-;define('boot/pipeline/normalizeCjs', ['require', 'exports', 'module', 'boot/lib/path'], function (require, exports, module, $cram_r0) {/** @license MIT License (c) copyright 2014 original authors */
-/** @author Brian Cavalier */
-/** @author John Hann */
-var path = $cram_r0;
-
-module.exports = normalizeCjs;
-
-var reduceLeadingDots = path.reduceLeadingDots;
-
-function normalizeCjs (name, refererName, refererUrl) {
-	return reduceLeadingDots(String(name), refererName || '');
-}
-
-});
-
-
-;define('boot/pipeline/_boot', ['require', 'exports', 'module', 'boot/pipeline/normalizeCjs', 'boot/pipeline/locateAsIs', 'boot/pipeline/fetchAsText', 'boot/pipeline/translateAsIs', 'boot/pipeline/translateWrapObjectLiteral', 'boot/pipeline/instantiateNode', 'boot/pipeline/instantiateScript', 'boot/lib/overrideIf'], function (require, exports, module, $cram_r0, $cram_r1, $cram_r2, $cram_r3, $cram_r4, $cram_r5, $cram_r6, $cram_r7) {/** @license MIT License (c) copyright 2014 original authors */
+;define('boot/pipeline/_boot', ['require', 'exports', 'module', 'boot/pipeline/normalizeCjs', 'boot/pipeline/locateAsIs', 'boot/pipeline/fetchAsText', 'boot/pipeline/translateAsIs', 'boot/pipeline/translateForDebug', 'boot/pipeline/translateWrapObjectLiteral', 'boot/pipeline/instantiateNode', 'boot/pipeline/instantiateScript', 'boot/lib/overrideIf'], function (require, exports, module, $cram_r0, $cram_r1, $cram_r2, $cram_r3, $cram_r4, $cram_r5, $cram_r6, $cram_r7, $cram_r8) {/** @license MIT License (c) copyright 2014 original authors */
 /** @author Brian Cavalier */
 /** @author John Hann */
 var normalizeCjs = $cram_r0;
 var locateAsIs = $cram_r1;
 var fetchAsText = $cram_r2;
 var translateAsIs = $cram_r3;
-var translateWrapObjectLiteral = $cram_r4;
-var instantiateNode = $cram_r5;
-var instantiateScript = $cram_r6;
-var overrideIf = $cram_r7;
+var translateForDebug = $cram_r4;
+var translateWrapObjectLiteral = $cram_r5;
+var instantiateNode = $cram_r6;
+var instantiateScript = $cram_r7;
+var overrideIf = $cram_r8;
 
-module.exports = function () {
-	var modulePipeline, jsonPipeline;
+module.exports = function (options) {
+	var translate, modulePipeline, jsonPipeline;
+
+	translate = options && options.debug
+		? translateForDebug
+		: translateAsIs;
 
 	modulePipeline = {
 		normalize: normalizeCjs,
 		locate: locateAsIs,
 		fetch: fetchAsText,
-		translate: translateAsIs,
+		translate: translate,
 		instantiate: instantiateNode
 	};
 
@@ -438,7 +474,7 @@ module.exports = function () {
 		normalize: normalizeCjs,
 		locate: locateAsIs,
 		fetch: fetchAsText,
-		translate: translateWrapObjectLiteral,
+		translate: translateJson(translateWrapObjectLiteral, translate),
 		instantiate: instantiateScript
 	};
 
@@ -470,6 +506,14 @@ function isJsonFile (arg) {
 
 function getModuleId (arg) {
 	return typeof arg === 'object' ? arg.name : arg;
+}
+
+function translateJson (wrap, base) {
+	// Note: this mutates `source`
+	return function (load) {
+		load.source = wrap(load);
+		return base(load);
+	};
 }
 
 });

@@ -5,19 +5,24 @@ var normalizeCjs = require('./normalizeCjs');
 var locateAsIs = require('./locateAsIs');
 var fetchAsText = require('./fetchAsText');
 var translateAsIs = require('./translateAsIs');
+var translateForDebug = require('./translateForDebug');
 var translateWrapObjectLiteral = require('./translateWrapObjectLiteral');
 var instantiateNode = require('./instantiateNode');
 var instantiateScript = require('./instantiateScript');
 var overrideIf = require('../lib/overrideIf');
 
-module.exports = function () {
-	var modulePipeline, jsonPipeline;
+module.exports = function (options) {
+	var translate, modulePipeline, jsonPipeline;
+
+	translate = options && options.debug
+		? translateForDebug
+		: translateAsIs;
 
 	modulePipeline = {
 		normalize: normalizeCjs,
 		locate: locateAsIs,
 		fetch: fetchAsText,
-		translate: translateAsIs,
+		translate: translate,
 		instantiate: instantiateNode
 	};
 
@@ -25,7 +30,7 @@ module.exports = function () {
 		normalize: normalizeCjs,
 		locate: locateAsIs,
 		fetch: fetchAsText,
-		translate: translateWrapObjectLiteral,
+		translate: translateJson(translateWrapObjectLiteral, translate),
 		instantiate: instantiateScript
 	};
 
@@ -57,4 +62,12 @@ function isJsonFile (arg) {
 
 function getModuleId (arg) {
 	return typeof arg === 'object' ? arg.name : arg;
+}
+
+function translateJson (wrap, base) {
+	// Note: this mutates `source`
+	return function (load) {
+		load.source = wrap(load);
+		return base(load);
+	};
 }

@@ -4,5 +4,6 @@
 module.exports = translateWrapObjectLiteral;
 
 function translateWrapObjectLiteral (load) {
-	return '(' + load.source + ')';
+	// The \n allows for a comment on the last line!
+	return '(' + load.source + '\n)';
 }

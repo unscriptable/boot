@@ -6,9 +6,10 @@ module.exports = instantiateScript;
 var globalFactory = require('../lib/globalFactory');
 
 function instantiateScript (load) {
+	var factory = globalFactory(this, load);
 	return {
 		execute: function () {
-			return new Module(globalFactory(load.source));
+			return new Module(factory());
 		}
 	};
 }
