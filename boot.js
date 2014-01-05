@@ -188,7 +188,7 @@ var Loader;
 		try { _global = loader.global } catch (ex) { _global = global; }
 		_require = this.legacyGetter(loader);
 		return function (id, deps, factory) {
-			var scoped, modules, i, len;
+			var scoped, modules, i, len, isCjs, result;
 			scoped = {
 				require: _require,
 				exports: {},
@@ -196,14 +196,20 @@ var Loader;
 			};
 			scoped.module = { exports: scoped.exports };
 			modules = [];
+			// if deps has been omitted
+			if (arguments.length === 2) {
+				factory = deps;
+				deps = ['require', 'exports', 'module'].slice(factory.length);
+			}
 			for (i = 0, len = deps.length; i < len; i++) {
 				modules[i] = deps[i] in scoped
 					? scoped[deps[i]]
 					: scoped.require(deps[i]);
+				isCjs |= deps[i] === 'exports' || deps[i] === 'module';
 			}
-			// eager instantiation. assume commonjs-wrapped
-			factory.apply(null, modules);
-			return scoped.module.exports;
+			// eager instantiation.
+			result = factory.apply(null, modules);
+			return isCjs ? scoped.module.exports : result;
 		};
 	};
 
