@@ -15,10 +15,10 @@ var Loader;
 
 	options = {
 		// TODO: switch to dist when es6-module-loader seems stable
-//		shimUrl: '//raw.github.com/ModuleLoader/es6-module-loader/master/dist/es6-module-loader.js',
-		shimUrl: '//raw.github.com/ModuleLoader/es6-module-loader/master/lib/es6-module-loader.js',
-		bootFiles: 'app.json,bower.json,package.json',
-		pipelineUrl: boot.scriptUrl + '/' + '../build/_bootPipeline.js'
+//		loaderShimUrl: '//raw.github.com/ModuleLoader/es6-module-loader/master/dist/es6-module-loader.js',
+		loaderShimUrl: '//raw.github.com/ModuleLoader/es6-module-loader/master/lib/es6-module-loader.js',
+		bootMain: 'boot/auto',
+		pipelineUrl: boot.scriptUrl + '/../' + 'build/_bootPipeline.js'
 	};
 
 	boot.boot = function (options) {
@@ -30,24 +30,12 @@ var Loader;
 			self.installShimLoader(options, getBootLoader, failLoudly);
 		}
 		function getBootLoader () {
-			self.bootLoader(options, getMetadataFiles, failLoudly);
+			self.bootLoader(options, loadMain, failLoudly);
 		}
-		function getMetadataFiles (loader) {
-			var urls, files, howMany, i;
-			urls = options.bootFiles.split(/\s*,\s*/);
-			files = [];
-			howMany = urls.length
-			for (i = 0; i < howMany; i++) {
-				loader.import(urls[i]).then(collect.bind(null, i));
-			}
-			function collect (i, value) {
-				files[i] = value;
-				if (--howMany === 0) done();
-			}
-			function done () {
-				// TODO: do something meaningful here
-				console.log(files);
-			}
+		function loadMain (loader) {
+			options.loader = loader;
+			// TODO: file an issue with es6-module-loader to implement .done()
+			loader.import(options.bootMain).then(null, failLoudly);
 		}
 		function failLoudly (ex) { throw ex; }
 	};
@@ -77,7 +65,7 @@ var Loader;
 
 	boot.installShimLoader = function (options, callback, errback) {
 		this.loadScript(
-			{ url: options.shimUrl, exports: 'Loader' },
+			{ url: options.loaderShimUrl, exports: 'Loader' },
 			callback,
 			errback
 		);
@@ -173,11 +161,14 @@ var Loader;
 	};
 
 	boot.mergeBrowserOptions = function (options) {
-		var el = document.documentElement;
-		options.bootFiles = el.getAttribute('data-boot') || options.bootFiles;
-		options.shimUrl = el.getAttribute('data-loader-url') || options.shimUrl;
-		options.debug = el.hasAttribute('data-boot-debug');
+		var el = document.documentElement, i, attr, prop;
+		for (i = 0; i < el.attributes.length; i++) {
+			attr = el.attributes[i];
+			prop = attr.name.slice(5).replace(/(?:data)?-(.)/g, camelize);
+			if (prop) options[prop] = attr.value;
+		}
 		return options;
+		function camelize (m, l) { return l.toUpperCase();}
 	};
 
 	boot.simpleDefine = function (loader) {
