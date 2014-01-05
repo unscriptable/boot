@@ -5,34 +5,30 @@ var normalizeCjs = require('./normalizeCjs');
 var locateAsIs = require('./locateAsIs');
 var fetchAsText = require('./fetchAsText');
 var translateAsIs = require('./translateAsIs');
-var translateForDebug = require('./translateForDebug');
 var translateWrapObjectLiteral = require('./translateWrapObjectLiteral');
 var instantiateNode = require('./instantiateNode');
 var instantiateScript = require('./instantiateScript');
 var overrideIf = require('../lib/overrideIf');
+var partial = require('boot/lib/partial');
 
 module.exports = function (options) {
-	var translate, modulePipeline, jsonPipeline;
+	var modulePipeline, jsonPipeline;
 
-	translate = options && options.debug
-		? translateForDebug
-		: translateAsIs;
-
-	modulePipeline = {
+	modulePipeline = withOptions(options, {
 		normalize: normalizeCjs,
 		locate: locateAsIs,
 		fetch: fetchAsText,
-		translate: translate,
+		translate: translateAsIs,
 		instantiate: instantiateNode
-	};
+	});
 
-	jsonPipeline = {
+	jsonPipeline = withOptions(options, {
 		normalize: normalizeCjs,
 		locate: locateAsIs,
 		fetch: fetchAsText,
-		translate: translateJson(translateWrapObjectLiteral, translate),
+		translate: translateWrapObjectLiteral,
 		instantiate: instantiateScript
-	};
+	});
 
 	return {
 		applyTo: function (loader) {
@@ -64,10 +60,9 @@ function getModuleId (arg) {
 	return typeof arg === 'object' ? arg.name : arg;
 }
 
-function translateJson (wrap, base) {
-	// Note: this mutates `source`
-	return function (load) {
-		load.source = wrap(load);
-		return base(load);
-	};
+function withOptions (options, pipeline) {
+	for (var p in pipeline) {
+		pipeline[p] = partial(pipeline[p], [options]);
+	}
+	return pipeline;
 }

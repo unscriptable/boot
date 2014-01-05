@@ -7,6 +7,6 @@ module.exports = normalizeCjs;
 
 var reduceLeadingDots = path.reduceLeadingDots;
 
-function normalizeCjs (name, refererName, refererUrl) {
+function normalizeCjs (options, name, refererName, refererUrl) {
 	return reduceLeadingDots(String(name), refererName || '');
 }

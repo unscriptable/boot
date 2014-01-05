@@ -6,7 +6,7 @@ module.exports = fetchAsText;
 var fetchText = require('boot').fetchText;
 var Thenable = require('../lib/Thenable');
 
-function fetchAsText (load) {
+function fetchAsText (options, load) {
 	return Thenable(function(resolve, reject) {
 		fetchText(load.address, resolve, reject);
 	});

@@ -3,6 +3,6 @@
 /** @author John Hann */
 module.exports = fetchFail;
 
-function fetchFail (load) {
+function fetchFail (options, load) {
 	throw new TypeError('Default implementation cannot fetch.');
 }

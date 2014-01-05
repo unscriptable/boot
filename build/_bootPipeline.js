@@ -4,33 +4,29 @@
 /** @author John Hann */
 module.exports = locateAsIs;
 
-function locateAsIs (load) {
+function locateAsIs (options, load) {
 	return load.name;
 }
 
 });
 
 
-;define('boot/pipeline/translateAsIs', ['require', 'exports', 'module'], function (require, exports, module) {/** @license MIT License (c) copyright 2014 original authors */
+;define('boot/lib/partial', ['require', 'exports', 'module'], function (require, exports, module) {/** @license MIT License (c) copyright 2014 original authors */
 /** @author Brian Cavalier */
 /** @author John Hann */
-module.exports = translateAsIs;
+module.exports = partial;
 
-function translateAsIs (load) {
-	return load.source;
-}
-
-});
-
-
-;define('boot/pipeline/translateWrapObjectLiteral', ['require', 'exports', 'module'], function (require, exports, module) {/** @license MIT License (c) copyright 2014 original authors */
-/** @author Brian Cavalier */
-/** @author John Hann */
-module.exports = translateWrapObjectLiteral;
-
-function translateWrapObjectLiteral (load) {
-	// The \n allows for a comment on the last line!
-	return '(' + load.source + '\n)';
+/**
+ * Returns a function that has part of its parameters captured.
+ * @param {Function} func
+ * @param {Array} args
+ * @returns {Function}
+ */
+function partial (func, args) {
+	return function () {
+		var copy = args.concat(args.slice.apply(arguments));
+		return func.apply(this, copy);
+	};
 }
 
 });
@@ -250,6 +246,21 @@ function failLoud (ex) {
 });
 
 
+;define('boot/lib/addSourceUrl', ['require', 'exports', 'module'], function (require, exports, module) {/** @license MIT License (c) copyright 2014 original authors */
+/** @author Brian Cavalier */
+/** @author John Hann */
+module.exports = addSourceUrl;
+
+function addSourceUrl (url, source) {
+	return source
+		+ '\n/*\n//@ sourceURL='
+		+ url.replace(/\s/g, '%20')
+		+ '\n*/\n';
+}
+
+});
+
+
 ;define('boot/lib/findRequires', ['require', 'exports', 'module'], function (require, exports, module) {/** @license MIT License (c) copyright 2014 original authors */
 /** @author Brian Cavalier */
 /** @author John Hann */
@@ -285,21 +296,6 @@ function findRequires (source) {
 	});
 
 	return deps;
-}
-
-});
-
-
-;define('boot/lib/addSourceUrl', ['require', 'exports', 'module'], function (require, exports, module) {/** @license MIT License (c) copyright 2014 original authors */
-/** @author Brian Cavalier */
-/** @author John Hann */
-module.exports = addSourceUrl;
-
-function addSourceUrl (url, source) {
-	return source
-		+ '\n/*\n//@ sourceURL='
-		+ url.replace(/\s/g, '%20')
-		+ '\n*/\n';
 }
 
 });
@@ -358,7 +354,7 @@ module.exports = normalizeCjs;
 
 var reduceLeadingDots = path.reduceLeadingDots;
 
-function normalizeCjs (name, refererName, refererUrl) {
+function normalizeCjs (options, name, refererName, refererUrl) {
 	return reduceLeadingDots(String(name), refererName || '');
 }
 
@@ -373,11 +369,27 @@ module.exports = fetchAsText;
 var fetchText = $cram_r0.fetchText;
 var Thenable = $cram_r1;
 
-function fetchAsText (load) {
+function fetchAsText (options, load) {
 	return Thenable(function(resolve, reject) {
 		fetchText(load.address, resolve, reject);
 	});
 
+}
+
+});
+
+
+;define('boot/pipeline/translateAsIs', ['require', 'exports', 'module', 'boot/lib/addSourceUrl'], function (require, exports, module, $cram_r0) {/** @license MIT License (c) copyright 2014 original authors */
+/** @author Brian Cavalier */
+/** @author John Hann */
+module.exports = translateAsIs;
+
+var addSourceUrl = $cram_r0;
+
+function translateAsIs (options, load) {
+	return options.debug
+		? addSourceUrl(load.address, load.source)
+		: load.source;
 }
 
 });
@@ -391,7 +403,7 @@ var nodeFactory = $cram_r1;
 
 module.exports = instantiateNode;
 
-function instantiateNode (load) {
+function instantiateNode (options, load) {
 	var factory;
 
 	load.loader = this;
@@ -409,20 +421,6 @@ function instantiateNode (load) {
 });
 
 
-;define('boot/pipeline/translateForDebug', ['require', 'exports', 'module', 'boot/lib/addSourceUrl'], function (require, exports, module, $cram_r0) {/** @license MIT License (c) copyright 2014 original authors */
-/** @author Brian Cavalier */
-/** @author John Hann */
-module.exports = translateForDebug;
-
-var addSourceUrl = $cram_r0;
-
-function translateForDebug (load) {
-	return addSourceUrl(load.address, load.source);
-}
-
-});
-
-
 ;define('boot/pipeline/instantiateScript', ['require', 'exports', 'module', 'boot/lib/globalFactory'], function (require, exports, module, $cram_r0) {/** @license MIT License (c) copyright 2014 original authors */
 /** @author Brian Cavalier */
 /** @author John Hann */
@@ -430,7 +428,7 @@ module.exports = instantiateScript;
 
 var globalFactory = $cram_r0;
 
-function instantiateScript (load) {
+function instantiateScript (options, load) {
 	var factory = globalFactory(this, load);
 	return {
 		execute: function () {
@@ -442,41 +440,60 @@ function instantiateScript (load) {
 });
 
 
-;define('boot/pipeline/_boot', ['require', 'exports', 'module', 'boot/pipeline/normalizeCjs', 'boot/pipeline/locateAsIs', 'boot/pipeline/fetchAsText', 'boot/pipeline/translateAsIs', 'boot/pipeline/translateForDebug', 'boot/pipeline/translateWrapObjectLiteral', 'boot/pipeline/instantiateNode', 'boot/pipeline/instantiateScript', 'boot/lib/overrideIf'], function (require, exports, module, $cram_r0, $cram_r1, $cram_r2, $cram_r3, $cram_r4, $cram_r5, $cram_r6, $cram_r7, $cram_r8) {/** @license MIT License (c) copyright 2014 original authors */
+;define('boot/pipeline/translateWrapObjectLiteral', ['require', 'exports', 'module', 'boot/pipeline/translateAsIs'], function (require, exports, module, $cram_r0) {/** @license MIT License (c) copyright 2014 original authors */
+/** @author Brian Cavalier */
+/** @author John Hann */
+module.exports = translateWrapObjectLiteral;
+
+var translateAsIs = $cram_r0;
+
+function translateWrapObjectLiteral (options, load) {
+	// The \n allows for a comment on the last line!
+	load.source = '(' + load.source + '\n)';
+	return translateAsIs(options, load);
+}
+
+});
+
+
+;define('boot/pipeline/_boot', ['require', 'exports', 'module', 'boot/pipeline/normalizeCjs', 'boot/pipeline/locateAsIs', 'boot/pipeline/fetchAsText', 'boot/pipeline/translateAsIs', 'boot/pipeline/translateWrapObjectLiteral', 'boot/pipeline/instantiateNode', 'boot/pipeline/instantiateScript', 'boot/lib/overrideIf', 'boot/lib/partial'], function (require, exports, module, $cram_r0, $cram_r1, $cram_r2, $cram_r3, $cram_r4, $cram_r5, $cram_r6, $cram_r7, $cram_r8) {/** @license MIT License (c) copyright 2014 original authors */
 /** @author Brian Cavalier */
 /** @author John Hann */
 var normalizeCjs = $cram_r0;
 var locateAsIs = $cram_r1;
 var fetchAsText = $cram_r2;
 var translateAsIs = $cram_r3;
-var translateForDebug = $cram_r4;
-var translateWrapObjectLiteral = $cram_r5;
-var instantiateNode = $cram_r6;
-var instantiateScript = $cram_r7;
-var overrideIf = $cram_r8;
+var translateWrapObjectLiteral = $cram_r4;
+var instantiateNode = $cram_r5;
+var instantiateScript = $cram_r6;
+var overrideIf = $cram_r7;
+var partial = $cram_r8;
+
+/*****
+ TODO:
+ 1. All pipeline functions should take a leading `options` param.
+ 2. Create a boot/lib/partial module that allows functions to be partialed
+ 3. Pipelines should partial their `options`.
+ *****/
 
 module.exports = function (options) {
-	var translate, modulePipeline, jsonPipeline;
+	var modulePipeline, jsonPipeline;
 
-	translate = options && options.debug
-		? translateForDebug
-		: translateAsIs;
-
-	modulePipeline = {
+	modulePipeline = withOptions(options, {
 		normalize: normalizeCjs,
 		locate: locateAsIs,
 		fetch: fetchAsText,
-		translate: translate,
+		translate: translateAsIs,
 		instantiate: instantiateNode
-	};
+	});
 
-	jsonPipeline = {
+	jsonPipeline = withOptions(options, {
 		normalize: normalizeCjs,
 		locate: locateAsIs,
 		fetch: fetchAsText,
-		translate: translateJson(translateWrapObjectLiteral, translate),
+		translate: translateWrapObjectLiteral,
 		instantiate: instantiateScript
-	};
+	});
 
 	return {
 		applyTo: function (loader) {
@@ -508,12 +525,11 @@ function getModuleId (arg) {
 	return typeof arg === 'object' ? arg.name : arg;
 }
 
-function translateJson (wrap, base) {
-	// Note: this mutates `source`
-	return function (load) {
-		load.source = wrap(load);
-		return base(load);
-	};
+function withOptions (options, pipeline) {
+	for (var p in pipeline) {
+		pipeline[p] = partial(pipeline[p], [options]);
+	}
+	return pipeline;
 }
 
 });

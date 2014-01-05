@@ -3,6 +3,6 @@
 /** @author John Hann */
 module.exports = instantiateDefault;
 
-function instantiateDefault (load) {
+function instantiateDefault (options, load) {
 	return;
 }

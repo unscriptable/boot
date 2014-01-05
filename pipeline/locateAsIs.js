@@ -3,6 +3,6 @@
 /** @author John Hann */
 module.exports = locateAsIs;
 
-function locateAsIs (load) {
+function locateAsIs (options, load) {
 	return load.name;
 }

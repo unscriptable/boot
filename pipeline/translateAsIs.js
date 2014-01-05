@@ -3,6 +3,10 @@
 /** @author John Hann */
 module.exports = translateAsIs;
 
-function translateAsIs (load) {
-	return load.source;
+var addSourceUrl = require('../lib/addSourceUrl');
+
+function translateAsIs (options, load) {
+	return options.debug
+		? addSourceUrl(load.address, load.source)
+		: load.source;
 }

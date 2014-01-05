@@ -6,7 +6,7 @@ var nodeFactory = require('../lib/nodeFactory');
 
 module.exports = instantiateNode;
 
-function instantiateNode (load) {
+function instantiateNode (options, load) {
 	var factory;
 
 	load.loader = this;

@@ -3,7 +3,10 @@
 /** @author John Hann */
 module.exports = translateWrapObjectLiteral;
 
-function translateWrapObjectLiteral (load) {
+var translateAsIs = require('./translateAsIs');
+
+function translateWrapObjectLiteral (options, load) {
 	// The \n allows for a comment on the last line!
-	return '(' + load.source + '\n)';
+	load.source = '(' + load.source + '\n)';
+	return translateAsIs(options, load);
 }

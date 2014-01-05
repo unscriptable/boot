@@ -8,7 +8,7 @@ module.exports = locateNpm;
 var joinPaths = path.joinPaths;
 var ensureExt = path.ensureExt;
 
-function locateNpm (load) {
+function locateNpm (options, load) {
 	// TODO
 	return ensureExt(joinPaths(this.baseUrl, load.name), '.js');
 }
