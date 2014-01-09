@@ -3,7 +3,7 @@
 /** @author John Hann */
 module.exports = fetchAsText;
 
-var fetchText = require('boot').fetchText;
+var fetchText = require('../lib/fetchText');
 var Thenable = require('../lib/Thenable');
 
 function fetchAsText (options, load) {

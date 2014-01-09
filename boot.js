@@ -138,6 +138,7 @@ var Loader;
 		}
 	};
 
+	// TODO: share this with lib/fetchText somehow
 	boot.fetchText = function (url, callback, errback) {
 		var xhr;
 		xhr = new XMLHttpRequest();
@@ -165,7 +166,7 @@ var Loader;
 		for (i = 0; i < el.attributes.length; i++) {
 			attr = el.attributes[i];
 			prop = attr.name.slice(5).replace(/(?:data)?-(.)/g, camelize);
-			if (prop) options[prop] = attr.value;
+			if (prop) options[prop] = attr.value || true;
 		}
 		return options;
 		function camelize (m, l) { return l.toUpperCase();}
@@ -206,11 +207,12 @@ var Loader;
 
 	boot.legacySetter = function (loader) {
 		return function (id, module) {
+			// TODO: only wrap if not an Object
 			var wrapped = {
 				// for real ES6 modules to consume this module
 				'default': module,
 				// for modules transpiled from ES6
-				__es6Module: module
+				__es5Module: module
 			};
 			// TODO: spec is ambiguous whether Module is a constructor or factory
 			loader.set(id, new Module(wrapped));
@@ -220,8 +222,8 @@ var Loader;
 	boot.legacyGetter = function (loader) {
 		return function (id) {
 			var wrapped = loader.get(id);
-			if (wrapped && wrapped.__es6Module) {
-				return wrapped.__es6Module;
+			if (wrapped && wrapped.__es5Module) {
+				return wrapped.__es5Module;
 			}
 			else {
 				// TODO: es6-module-transpiler handles this differently
