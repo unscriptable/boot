@@ -42,7 +42,10 @@ var Loader;
 		function go (main) {
 			main.main(beget(options));
 		}
-		function failLoudly (ex) { throw ex; }
+		function failLoudly (ex) {
+			console.error(ex);
+			throw ex;
+		}
 	};
 
 	boot.bootLoader = function (options, callback, errback) {
