@@ -37,13 +37,16 @@ var Loader;
 		}
 		function loadMain (loader) {
 			// TODO: file an issue with es6-module-loader to implement .done()
-			loader.import(options.bootMain).then(void 0, failLoudly);
+			loader.import(options.bootMain).then(go, failLoudly);
+		}
+		function go (main) {
+			main.main(beget(options));
 		}
 		function failLoudly (ex) { throw ex; }
 	};
 
 	boot.bootLoader = function (options, callback, errback) {
-		var main, loader, _set, _get, options;
+		var main, loader, _set, _get;
 
 		main = options.bootMain;
 		loader = new Loader({});
@@ -57,19 +60,17 @@ var Loader;
 		_set('boot', this);
 
 		// set options
-		options = {
-			url: options.pipelineUrl,
-			loader: loader,
-			debug: options.debug
-		};
-		if (main === defaultMain) {
-			options.baseUrl = boot.scriptPath;
-			options.packages = { boot: boot.scriptUrl };
-		}
+		options.loader = loader;
+		options.baseUrl = boot.scriptPath;
+		options.packages = { boot: boot.scriptUrl };
 
 		// fetch default pipeline (in a simple amd-wrapped node bundle)
 		this.fetchSimpleAmdBundle(
-			options,
+			{
+				url: options.pipelineUrl,
+				loader: loader,
+				debug: options.debug
+			},
 			function () {
 				var pipeline = _get('boot/pipeline/_boot');
 				// extend loader
@@ -274,6 +275,15 @@ var Loader;
 	function getPathFromUrl (url) {
 		var last = url.lastIndexOf('/');
 		return url.slice(0, last) + '/';
+	}
+
+	// TODO: reuse this
+	function Begetter () {}
+	function beget (base) {
+		Begetter.prototype = base;
+		var obj = new Begetter();
+		Begetter.prototype = null;
+		return obj;
 	}
 
 }(
