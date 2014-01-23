@@ -2,21 +2,27 @@
 /** @author Brian Cavalier */
 /** @author John Hann */
 var normalizeCjs = require('./normalizeCjs');
-var locateAsIs = require('./locateAsIs');
+var locateFlatPackage = require('./locateFlatPackage');
 var fetchAsText = require('./fetchAsText');
 var translateAsIs = require('./translateAsIs');
 var translateWrapObjectLiteral = require('./translateWrapObjectLiteral');
 var instantiateNode = require('./instantiateNode');
 var instantiateScript = require('./instantiateScript');
 var overrideIf = require('../lib/overrideIf');
-var partial = require('boot/lib/partial');
+var partial = require('../lib/partial');
+var pkg = require('../lib/package');
 
 module.exports = function (options) {
 	var modulePipeline, jsonPipeline;
 
+	options = beget(options);
+	if (options.packages) {
+		options.packages = pkg.normalizeCollection(options.packages);
+	}
+
 	modulePipeline = withOptions(options, {
 		normalize: normalizeCjs,
-		locate: locateAsIs,
+		locate: locateFlatPackage,
 		fetch: fetchAsText,
 		translate: translateAsIs,
 		instantiate: instantiateNode
@@ -24,7 +30,7 @@ module.exports = function (options) {
 
 	jsonPipeline = withOptions(options, {
 		normalize: normalizeCjs,
-		locate: locateAsIs,
+		locate: locateFlatPackage,
 		fetch: fetchAsText,
 		translate: translateWrapObjectLiteral,
 		instantiate: instantiateScript
@@ -65,4 +71,13 @@ function withOptions (options, pipeline) {
 		pipeline[p] = partial(pipeline[p], [options]);
 	}
 	return pipeline;
+}
+
+function Begetter () {}
+function beget (base) {
+	var obj;
+	Begetter.prototype = base;
+	obj = new Begetter();
+	Begetter.prototype = null;
+	return obj;
 }
