@@ -5,20 +5,23 @@ var Loader;
 (function (exports, NativeLoader, global, amdEval) {
 "use strict";
 
-	var boot, document, options;
+	var boot, document, defaultMain, options;
 
 	boot = exports || {};
 
 	document = global.document;
 
+	defaultMain = 'boot/auto';
+
 	boot.scriptUrl = getCurrentScript();
+	boot.scriptPath = getPathFromUrl(boot.scriptUrl);
 
 	options = {
 		// TODO: switch to dist when es6-module-loader seems stable
 //		loaderShimUrl: '//raw.github.com/ModuleLoader/es6-module-loader/master/dist/es6-module-loader.js',
 		loaderShimUrl: '//raw.github.com/ModuleLoader/es6-module-loader/master/lib/es6-module-loader.js',
-		bootMain: 'boot/auto',
-		pipelineUrl: boot.scriptUrl + '/../' + 'build/_bootPipeline.js'
+		bootMain: defaultMain,
+		pipelineUrl: boot.scriptPath + 'build/_bootPipeline.js'
 	};
 
 	boot.boot = function (options) {
@@ -33,16 +36,18 @@ var Loader;
 			self.bootLoader(options, loadMain, failLoudly);
 		}
 		function loadMain (loader) {
-			options.loader = loader;
 			// TODO: file an issue with es6-module-loader to implement .done()
-			loader.import(options.bootMain).then(null, failLoudly);
+			loader.import(options.bootMain).then(void 0, failLoudly);
 		}
 		function failLoudly (ex) { throw ex; }
 	};
 
 	boot.bootLoader = function (options, callback, errback) {
-		var loader, _set, _get;
+		var main, loader, _set, _get, options;
+
+		main = options.bootMain;
 		loader = new Loader({});
+
 		_set = this.legacySetter(loader);
 		_get = this.legacyGetter(loader);
 		// Expose boot.js as a module (Note: this doesn't seem like the
@@ -50,9 +55,21 @@ var Loader;
 		// the pipeline.)
 		_set('boot/boot', this);
 		_set('boot', this);
+
+		// set options
+		options = {
+			url: options.pipelineUrl,
+			loader: loader,
+			debug: options.debug
+		};
+		if (main === defaultMain) {
+			options.baseUrl = boot.scriptPath;
+			options.packages = { boot: boot.scriptUrl };
+		}
+
 		// fetch default pipeline (in a simple amd-wrapped node bundle)
 		this.fetchSimpleAmdBundle(
-			{ url: options.pipelineUrl, loader: loader, debug: options.debug },
+			options,
 			function () {
 				var pipeline = _get('boot/pipeline/_boot');
 				// extend loader
@@ -252,6 +269,11 @@ var Loader;
 		matches = stack.match(/(?:http:|https:|file:|\/).*?\.js/);
 
 		return matches && matches[0];
+	}
+
+	function getPathFromUrl (url) {
+		var last = url.lastIndexOf('/');
+		return url.slice(0, last) + '/';
 	}
 
 }(
