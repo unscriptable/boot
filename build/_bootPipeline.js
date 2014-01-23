@@ -1,11 +1,22 @@
 
-;define('boot/pipeline/locateAsIs', ['require', 'exports', 'module'], function (require, exports, module) {/** @license MIT License (c) copyright 2014 original authors */
+;define('boot/lib/overrideIf', ['require', 'exports', 'module'], function (require, exports, module) {/** @license MIT License (c) copyright 2014 original authors */
 /** @author Brian Cavalier */
 /** @author John Hann */
-module.exports = locateAsIs;
+module.exports = overrideIf;
 
-function locateAsIs (options, load) {
-	return load.name;
+function overrideIf (base, predicate, props) {
+	for (var p in props) {
+		if (p in base) {
+			base[p] = choice(predicate, props[p], base[p]);
+		}
+	}
+}
+
+function choice (predicate, a, b) {
+	return function () {
+		var f = predicate.apply(this, arguments) ? a : b;
+		return f.apply(this, arguments);
+	};
 }
 
 });
@@ -32,30 +43,6 @@ function partial (func, args) {
 });
 
 
-;define('boot/lib/overrideIf', ['require', 'exports', 'module'], function (require, exports, module) {/** @license MIT License (c) copyright 2014 original authors */
-/** @author Brian Cavalier */
-/** @author John Hann */
-module.exports = overrideIf;
-
-function overrideIf (base, predicate, props) {
-	for (var p in props) {
-		if (p in base) {
-			base[p] = override(base[p], predicate, props[p]);
-		}
-	}
-}
-
-function override (orig, predicate, method) {
-	return function () {
-		return predicate.apply(this, arguments)
-			? method.apply(this, arguments)
-			: orig.apply(this, arguments);
-	};
-}
-
-});
-
-
 ;define('boot/lib/path', ['require', 'exports', 'module'], function (require, exports, module) {/** @license MIT License (c) copyright 2014 original authors */
 /** @author Brian Cavalier */
 /** @author John Hann */
@@ -69,65 +56,74 @@ module.exports = {
 	isAbsUrl: isAbsUrl,
 	isRelPath: isRelPath,
 	joinPaths: joinPaths,
-	removeEndSlash: removeEndSlash,
+	ensureEndSlash: ensureEndSlash,
 	ensureExt: ensureExt,
 	reduceLeadingDots: reduceLeadingDots
 };
 
 /**
  * Returns true if the url is absolute (not relative to the document)
- * @param {String} url
+ * @param {string} url
  * @return {Boolean}
  */
-function isAbsUrl (url) { return absUrlRx.test(url); }
-
-/**
- * Returns true if the the path provided is relative.
- * @param {String} path
- * @return {Boolean}
- */
-function isRelPath (path) { return path.charAt(0) == '.'; }
-
-/**
- * Joins two paths, base and sub, together.
- * @param {String} base
- * @param {String} sub
- * @return {String}
- */
-function joinPaths (base, sub) {
-	base = removeEndSlash(base);
-	return (base ? base + '/' : '') + sub;
+function isAbsUrl (url) {
+	return absUrlRx.test(url);
 }
 
 /**
- * Removes any trailing slash ("/") from a string.
- * @param {String} path
- * @return {String}
+ * Returns true if the path provided is relative.
+ * @param {string} path
+ * @return {Boolean}
  */
-function removeEndSlash (path) {
-	return path && path.charAt(path.length - 1) == '/'
-		? path.substr(0, path.length - 1)
+function isRelPath (path) {
+	return path.charAt(0) == '.';
+}
+
+/**
+ * Joins path parts together.
+ * @param {...string} parts
+ * @return {string}
+ */
+function joinPaths () {
+	var result, parts;
+	parts = Array.prototype.slice.call(arguments);
+	result = [parts.pop() || ''];
+	while (parts.length) {
+		result.unshift(ensureEndSlash(parts.pop()))
+	}
+	return result.join('');
+}
+
+/**
+ * Ensures a trailing slash ("/") on a string.
+ * @param {string} path
+ * @return {string}
+ */
+function ensureEndSlash (path) {
+	return path && path.charAt(path.length - 1) !== '/'
+		? path + '/'
 		: path;
 }
+
 /**
- * Ensures that a path ends in the given extension.
- * @param {String} path
- * @param {String} ext
- * @return {String}
+ * Checks for an extension at the end of the url or file path.  If one isn't
+ * specified, it is added.
+ * @param {string} path is any url or file path.
+ * @param {string} ext is an extension, starting with a dot.
+ * @returns {string} a url with an extension.
  */
 function ensureExt (path, ext) {
-	return path.lastIndexOf(ext) == path.length - ext.length
-		? path
-		: path + ext;
+	var hasExt = path.indexOf('.') > path.indexOf('/');
+	return hasExt ? path : path + ext;
 }
 
 /**
  * Normalizes a CommonJS-style (or AMD) module id against a referring
  * module id.  Leading ".." or "." path specifiers are folded into
  * the referer's id/path.
- * @param {String} childId
- * @param {String} baseId
- * @return {String}
+ * @param {string} childId
+ * @param {string} baseId
+ * @return {string}
  */
 function reduceLeadingDots (childId, baseId) {
 	var removeLevels, normId, levels, isRelative, diff;
@@ -168,6 +164,69 @@ function reduceLeadingDots (childId, baseId) {
 		if (dblDot) removeLevels++;
 		return remainder || '';
 	}
+}
+
+});
+
+
+;define('boot/lib/fetchText', ['require', 'exports', 'module'], function (require, exports, module) {module.exports = fetchText;
+
+function fetchText (url, callback, errback) {
+	var xhr;
+	xhr = new XMLHttpRequest();
+	xhr.open('GET', url, true);
+	xhr.onreadystatechange = function () {
+		if (xhr.readyState === 4) {
+			if (xhr.status < 400) {
+				callback(xhr.responseText);
+			}
+			else {
+				errback(
+					new Error(
+						'fetchText() failed. url: "' + url
+						+ '" status: ' + xhr.status + ' - ' + xhr.statusText
+					)
+				);
+			}
+		}
+	};
+	xhr.send(null);
+};
+
+});
+
+
+;define('boot/lib/nodeFactory', ['require', 'exports', 'module'], function (require, exports, module) {/** @license MIT License (c) copyright 2014 original authors */
+/** @author Brian Cavalier */
+/** @author John Hann */
+module.exports = nodeFactory;
+
+var nodeEval = new Function(
+	'require', 'exports', 'module', 'global',
+	'eval(arguments[4]);'
+);
+
+var global;
+
+if (typeof global === 'undefined') {
+	global = window;
+}
+
+function nodeFactory (loader, load) {
+	var require, module;
+
+	require = function (id) {
+		var abs = loader.normalize(id, load.name);
+		return loader.get(abs);
+	};
+	module = { id: load.name, uri: load.address, exports: {} };
+
+	return function () {
+		// TODO: use loader.global when es6-module-loader implements it
+		var g = global;
+		nodeEval(require, module.exports, module, g, load.source);
+		return module.exports;
+	};
 }
 
 });
@@ -301,34 +360,6 @@ function findRequires (source) {
 });
 
 
-;define('boot/lib/nodeFactory', ['require', 'exports', 'module'], function (require, exports, module) {/** @license MIT License (c) copyright 2014 original authors */
-/** @author Brian Cavalier */
-/** @author John Hann */
-module.exports = nodeFactory;
-
-var nodeEval = new Function(
-	'require', 'exports', 'module', 'global',
-	'eval(arguments[4]);'
-);
-
-function nodeFactory (loader, load) {
-	var require, module;
-
-	require = function (id) {
-		var abs = loader.normalize(id, load.name);
-		return loader.get(abs);
-	};
-	module = { id: load.name, uri: load.address, exports: {} };
-
-	return function () {
-		nodeEval(require, module.exports, module, loader.global, load.source);
-		return module.exports;
-	};
-}
-
-});
-
-
 ;define('boot/lib/globalFactory', ['require', 'exports', 'module'], function (require, exports, module) {/** @license MIT License (c) copyright 2014 original authors */
 /** @author Brian Cavalier */
 /** @author John Hann */
@@ -361,12 +392,12 @@ function normalizeCjs (options, name, refererName, refererUrl) {
 });
 
 
-;define('boot/pipeline/fetchAsText', ['require', 'exports', 'module', 'boot/boot', 'boot/lib/Thenable'], function (require, exports, module, $cram_r0, $cram_r1) {/** @license MIT License (c) copyright 2014 original authors */
+;define('boot/pipeline/fetchAsText', ['require', 'exports', 'module', 'boot/lib/fetchText', 'boot/lib/Thenable'], function (require, exports, module, $cram_r0, $cram_r1) {/** @license MIT License (c) copyright 2014 original authors */
 /** @author Brian Cavalier */
 /** @author John Hann */
 module.exports = fetchAsText;
 
-var fetchText = $cram_r0.fetchText;
+var fetchText = $cram_r0;
 var Thenable = $cram_r1;
 
 function fetchAsText (options, load) {
@@ -440,6 +471,110 @@ function instantiateScript (options, load) {
 });
 
 
+;define('boot/pipeline/locateFlatPackage', ['require', 'exports', 'module', 'boot/lib/path'], function (require, exports, module, $cram_r0) {/** @license MIT License (c) copyright 2014 original authors */
+/** @author Brian Cavalier */
+/** @author John Hann */
+module.exports = locateFlatPackage;
+
+var path = $cram_r0;
+
+function locateFlatPackage (options, load) {
+	var parts, packageName, moduleName, descriptor, location, ext;
+
+	// Note: name should be normalized before it reaches this locate function.
+	parts = load.name.split('/');
+	packageName = parts.shift();
+
+	if (!options.packages) throw new Error('Packages not provided: ' + load.name);
+
+	descriptor = options.packages[packageName];
+	if (!descriptor) throw new Error('Package not found: ' + load.name);
+
+	moduleName = parts.join('/') || descriptor.main;
+	location = descriptor.location;
+	ext = options.defaultExt || '.js';
+
+	// prepend baseUrl
+	if (!path.isAbsUrl(location) && options.baseUrl) {
+		location = path.joinPaths(options.baseUrl, location);
+	}
+
+	return path.joinPaths(location, path.ensureExt(moduleName, ext));
+}
+
+});
+
+
+;define('boot/lib/package', ['require', 'exports', 'module', 'boot/lib/path'], function (require, exports, module, $cram_r0) {/** @license MIT License (c) copyright 2014 original authors */
+/** @author Brian Cavalier */
+/** @author John Hann */
+var path = $cram_r0;
+
+/**
+ * @module boot/lib/package
+ * Functions for CommonJS-style module packages
+ */
+module.exports = {
+
+	normalizeDescriptor: normalizeDescriptor,
+	normalizeCollection: normalizeCollection
+
+};
+
+function normalizeCollection (collection) {
+	var result = {}, i, descriptor;
+	if (collection && collection.length && collection[0]) {
+		// array
+		for (i = 0; i < collection.length; i++) {
+			descriptor = normalizeDescriptor(collection[i]);
+			result[descriptor.name] = descriptor;
+		}
+	}
+	else if (collection) {
+		// object hashmap
+		for (i in collection) {
+			descriptor = normalizeDescriptor(collection[i], i);
+			result[descriptor.name] = descriptor;
+		}
+	}
+	return result;
+}
+
+function normalizeDescriptor (thing, name) {
+	var descriptor;
+
+	descriptor = typeof thing === 'string'
+		? fromString(thing)
+		: fromObject(thing, name);
+
+	if (name) descriptor.name = name; // override with hashmap key
+	if (!descriptor.name) throw new Error('Package requires a name: ' + thing);
+	descriptor.main = descriptor.main.replace(/\.js$/, '');
+	descriptor.location = path.ensureEndSlash(descriptor.location);
+
+	return descriptor;
+}
+
+function fromString (str) {
+	var parts = str.split('/');
+	return {
+		main: parts.pop(),
+		location: parts.join('/'),
+		name: parts.pop()
+	};
+}
+
+function fromObject (obj, name) {
+	return {
+		main: obj.main || 'main', // or index?
+		location: obj.location || '',
+		name: obj.name || name
+	};
+}
+
+});
+
+
 ;define('boot/pipeline/translateWrapObjectLiteral', ['require', 'exports', 'module', 'boot/pipeline/translateAsIs'], function (require, exports, module, $cram_r0) {/** @license MIT License (c) copyright 2014 original authors */
 /** @author Brian Cavalier */
 /** @author John Hann */
@@ -456,11 +591,11 @@ function translateWrapObjectLiteral (options, load) {
 });
 
 
-;define('boot/pipeline/_boot', ['require', 'exports', 'module', 'boot/pipeline/normalizeCjs', 'boot/pipeline/locateAsIs', 'boot/pipeline/fetchAsText', 'boot/pipeline/translateAsIs', 'boot/pipeline/translateWrapObjectLiteral', 'boot/pipeline/instantiateNode', 'boot/pipeline/instantiateScript', 'boot/lib/overrideIf', 'boot/lib/partial'], function (require, exports, module, $cram_r0, $cram_r1, $cram_r2, $cram_r3, $cram_r4, $cram_r5, $cram_r6, $cram_r7, $cram_r8) {/** @license MIT License (c) copyright 2014 original authors */
+;define('boot/pipeline/_boot', ['require', 'exports', 'module', 'boot/pipeline/normalizeCjs', 'boot/pipeline/locateFlatPackage', 'boot/pipeline/fetchAsText', 'boot/pipeline/translateAsIs', 'boot/pipeline/translateWrapObjectLiteral', 'boot/pipeline/instantiateNode', 'boot/pipeline/instantiateScript', 'boot/lib/overrideIf', 'boot/lib/partial', 'boot/lib/package'], function (require, exports, module, $cram_r0, $cram_r1, $cram_r2, $cram_r3, $cram_r4, $cram_r5, $cram_r6, $cram_r7, $cram_r8, $cram_r9) {/** @license MIT License (c) copyright 2014 original authors */
 /** @author Brian Cavalier */
 /** @author John Hann */
 var normalizeCjs = $cram_r0;
-var locateAsIs = $cram_r1;
+var locateFlatPackage = $cram_r1;
 var fetchAsText = $cram_r2;
 var translateAsIs = $cram_r3;
 var translateWrapObjectLiteral = $cram_r4;
@@ -468,20 +603,19 @@ var instantiateNode = $cram_r5;
 var instantiateScript = $cram_r6;
 var overrideIf = $cram_r7;
 var partial = $cram_r8;
-
-/*****
- TODO:
- 1. All pipeline functions should take a leading `options` param.
- 2. Create a boot/lib/partial module that allows functions to be partialed
- 3. Pipelines should partial their `options`.
- *****/
+var pkg = $cram_r9;
 
 module.exports = function (options) {
 	var modulePipeline, jsonPipeline;
 
+	options = beget(options);
+	if (options.packages) {
+		options.packages = pkg.normalizeCollection(options.packages);
+	}
+
 	modulePipeline = withOptions(options, {
 		normalize: normalizeCjs,
-		locate: locateAsIs,
+		locate: locateFlatPackage,
 		fetch: fetchAsText,
 		translate: translateAsIs,
 		instantiate: instantiateNode
@@ -489,7 +623,7 @@ module.exports = function (options) {
 
 	jsonPipeline = withOptions(options, {
 		normalize: normalizeCjs,
-		locate: locateAsIs,
+		locate: locateFlatPackage,
 		fetch: fetchAsText,
 		translate: translateWrapObjectLiteral,
 		instantiate: instantiateScript
@@ -530,6 +664,15 @@ function withOptions (options, pipeline) {
 		pipeline[p] = partial(pipeline[p], [options]);
 	}
 	return pipeline;
+}
+
+function Begetter () {}
+function beget (base) {
+	var obj;
+	Begetter.prototype = base;
+	obj = new Begetter();
+	Begetter.prototype = null;
+	return obj;
 }
 
 });
