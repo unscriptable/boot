@@ -38,8 +38,8 @@ module.exports = function (options) {
 
 	return {
 		applyTo: function (loader) {
-			overrideIf(loader, isBootModule, modulePipeline);
-			overrideIf(loader, isJsonFile, jsonPipeline);
+			overrideIf(isBootModule, loader, modulePipeline);
+			overrideIf(isJsonFile, loader, jsonPipeline);
 		}
 	};
 };
