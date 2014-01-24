@@ -1,34 +1,48 @@
 {
-	"name": "beck",
-	"version": "0.1.6",
-	"description": "An ES6 Module Loader pipeline toolkit and shim.",
-	"keywords": ["beck", "commonjs", "modules", "amd", "module", "es6"],
-	"main": "load",
-	"ignore": [ "node_modules", "components" ],
-	"licenses": [
-		{
-			"type": "MIT",
-			"url": "http://www.opensource.org/licenses/mit-license.php"
-		}
-	],
-	"repository": {
-		"type": "git",
-		"url": "https://github.com/unscriptable/beck"
-	},
-	"maintainers": [
-		{
-			"name": "John Hann",
-			"web": "http://unscriptable.com"
-		}
-	],
-	"contributors": [
-		{
-			"name": "John Hann",
-			"web": "http://unscriptable.com"
-		},
-		{
-			"name": "Brian Cavalier",
-			"web": "http://hovercraftstudios.com"
-		}
-	]
+  "name": "experiment",
+  "version": "0.1.6",
+  "description": "This is an experiment.",
+  "keywords": [
+    "boot",
+    "commonjs",
+    "modules",
+    "amd",
+    "module",
+    "es6"
+  ],
+  "main": "main",
+  "ignore": [
+    "node_modules",
+    "bower_components"
+  ],
+  "licenses": [
+    {
+      "type": "MIT",
+      "url": "http://www.opensource.org/licenses/mit-license.php"
+    }
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/unscriptable/scratch"
+  },
+  "dependencies": {
+    "curl": "~0.8.8",
+    "when": "~2.7.1"
+  },
+  "maintainers": [
+    {
+      "name": "John Hann",
+      "web": "http://unscriptable.com"
+    }
+  ],
+  "contributors": [
+    {
+      "name": "John Hann",
+      "web": "http://unscriptable.com"
+    },
+    {
+      "name": "Brian Cavalier",
+      "web": "http://hovercraftstudios.com"
+    }
+  ]
 }
