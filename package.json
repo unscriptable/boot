@@ -16,9 +16,11 @@
 	"author": "John Hann <john@unscriptable.com>",
 	"license": "MIT",
 	"devDependencies": {
-		"cram": "~0.7.10"
+		"cram": "~0.7.12",
+		"serv": ""
 	},
 	"scripts" : {
+		"start": "serv .",
 		"build": "node node_modules/cram/cram.js --config ./build/createDefaultPipeline.json --output ./build/_bootPipeline.js"
 	}
 }
