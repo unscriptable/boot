@@ -3,6 +3,7 @@
 /** @author John Hann */
 var normalizeCjs = require('./normalizeCjs');
 var locateFlatPackage = require('./locateFlatPackage');
+var locateAsIs = require('./locateAsIs');
 var fetchAsText = require('./fetchAsText');
 var translateAsIs = require('./translateAsIs');
 var translateWrapObjectLiteral = require('./translateWrapObjectLiteral');
@@ -31,7 +32,7 @@ module.exports = function (options) {
 
 	jsonPipeline = withOptions(options, {
 		normalize: normalizeCjs,
-		locate: locateFlatPackage,
+		locate: locateAsIs,
 		fetch: fetchAsText,
 		translate: translateWrapObjectLiteral,
 		instantiate: instantiateScript

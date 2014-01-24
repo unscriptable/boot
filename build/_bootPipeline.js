@@ -1,10 +1,22 @@
 
+;define('boot/pipeline/locateAsIs', ['require', 'exports', 'module'], function (require, exports, module) {/** @license MIT License (c) copyright 2014 original authors */
+/** @author Brian Cavalier */
+/** @author John Hann */
+module.exports = locateAsIs;
+
+function locateAsIs (options, load) {
+	return load.name;
+}
+
+});
+
+
 ;define('boot/lib/overrideIf', ['require', 'exports', 'module'], function (require, exports, module) {/** @license MIT License (c) copyright 2014 original authors */
 /** @author Brian Cavalier */
 /** @author John Hann */
 module.exports = overrideIf;
 
-function overrideIf (base, predicate, props) {
+function overrideIf (predicate, base, props) {
 	for (var p in props) {
 		if (p in base) {
 			base[p] = choice(predicate, props[p], base[p]);
@@ -38,6 +50,23 @@ function partial (func, args) {
 		var copy = args.concat(args.slice.apply(arguments));
 		return func.apply(this, copy);
 	};
+}
+
+});
+
+
+;define('boot/lib/beget', ['require', 'exports', 'module'], function (require, exports, module) {/** @license MIT License (c) copyright 2014 original authors */
+/** @author Brian Cavalier */
+/** @author John Hann */
+module.exports = beget;
+
+function Begetter () {}
+function beget (base) {
+	var obj;
+	Begetter.prototype = base;
+	obj = new Begetter();
+	Begetter.prototype = null;
+	return obj;
 }
 
 });
@@ -196,37 +225,16 @@ function fetchText (url, callback, errback) {
 });
 
 
-;define('boot/lib/nodeFactory', ['require', 'exports', 'module'], function (require, exports, module) {/** @license MIT License (c) copyright 2014 original authors */
+;define('boot/lib/addSourceUrl', ['require', 'exports', 'module'], function (require, exports, module) {/** @license MIT License (c) copyright 2014 original authors */
 /** @author Brian Cavalier */
 /** @author John Hann */
-module.exports = nodeFactory;
+module.exports = addSourceUrl;
 
-var nodeEval = new Function(
-	'require', 'exports', 'module', 'global',
-	'eval(arguments[4]);'
-);
-
-var global;
-
-if (typeof global === 'undefined') {
-	global = window;
-}
-
-function nodeFactory (loader, load) {
-	var require, module;
-
-	require = function (id) {
-		var abs = loader.normalize(id, load.name);
-		return loader.get(abs);
-	};
-	module = { id: load.name, uri: load.address, exports: {} };
-
-	return function () {
-		// TODO: use loader.global when es6-module-loader implements it
-		var g = global;
-		nodeEval(require, module.exports, module, g, load.source);
-		return module.exports;
-	};
+function addSourceUrl (url, source) {
+	return source
+		+ '\n/*\n//@ sourceURL='
+		+ url.replace(/\s/g, '%20')
+		+ '\n*/\n';
 }
 
 });
@@ -305,21 +313,6 @@ function failLoud (ex) {
 });
 
 
-;define('boot/lib/addSourceUrl', ['require', 'exports', 'module'], function (require, exports, module) {/** @license MIT License (c) copyright 2014 original authors */
-/** @author Brian Cavalier */
-/** @author John Hann */
-module.exports = addSourceUrl;
-
-function addSourceUrl (url, source) {
-	return source
-		+ '\n/*\n//@ sourceURL='
-		+ url.replace(/\s/g, '%20')
-		+ '\n*/\n';
-}
-
-});
-
-
 ;define('boot/lib/findRequires', ['require', 'exports', 'module'], function (require, exports, module) {/** @license MIT License (c) copyright 2014 original authors */
 /** @author Brian Cavalier */
 /** @author John Hann */
@@ -360,6 +353,42 @@ function findRequires (source) {
 });
 
 
+;define('boot/lib/nodeFactory', ['require', 'exports', 'module'], function (require, exports, module) {/** @license MIT License (c) copyright 2014 original authors */
+/** @author Brian Cavalier */
+/** @author John Hann */
+module.exports = nodeFactory;
+
+var nodeEval = new Function(
+	'require', 'exports', 'module', 'global',
+	'eval(arguments[4]);'
+);
+
+var global;
+
+if (typeof global === 'undefined') {
+	global = window;
+}
+
+function nodeFactory (loader, load) {
+	var require, module;
+
+	require = function (id) {
+		var abs = loader.normalize(id, load.name);
+		return loader.get(abs);
+	};
+	module = { id: load.name, uri: load.address, exports: {} };
+
+	return function () {
+		// TODO: use loader.global when es6-module-loader implements it
+		var g = global;
+		nodeEval(require, module.exports, module, g, load.source);
+		return module.exports;
+	};
+}
+
+});
+
+
 ;define('boot/lib/globalFactory', ['require', 'exports', 'module'], function (require, exports, module) {/** @license MIT License (c) copyright 2014 original authors */
 /** @author Brian Cavalier */
 /** @author John Hann */
@@ -392,6 +421,22 @@ function normalizeCjs (options, name, refererName, refererUrl) {
 });
 
 
+;define('boot/pipeline/translateAsIs', ['require', 'exports', 'module', 'boot/lib/addSourceUrl'], function (require, exports, module, $cram_r0) {/** @license MIT License (c) copyright 2014 original authors */
+/** @author Brian Cavalier */
+/** @author John Hann */
+module.exports = translateAsIs;
+
+var addSourceUrl = $cram_r0;
+
+function translateAsIs (options, load) {
+	return options.debug
+		? addSourceUrl(load.address, load.source)
+		: load.source;
+}
+
+});
+
+
 ;define('boot/pipeline/fetchAsText', ['require', 'exports', 'module', 'boot/lib/fetchText', 'boot/lib/Thenable'], function (require, exports, module, $cram_r0, $cram_r1) {/** @license MIT License (c) copyright 2014 original authors */
 /** @author Brian Cavalier */
 /** @author John Hann */
@@ -405,22 +450,6 @@ function fetchAsText (options, load) {
 		fetchText(load.address, resolve, reject);
 	});
 
-}
-
-});
-
-
-;define('boot/pipeline/translateAsIs', ['require', 'exports', 'module', 'boot/lib/addSourceUrl'], function (require, exports, module, $cram_r0) {/** @license MIT License (c) copyright 2014 original authors */
-/** @author Brian Cavalier */
-/** @author John Hann */
-module.exports = translateAsIs;
-
-var addSourceUrl = $cram_r0;
-
-function translateAsIs (options, load) {
-	return options.debug
-		? addSourceUrl(load.address, load.source)
-		: load.source;
 }
 
 });
@@ -591,19 +620,21 @@ function translateWrapObjectLiteral (options, load) {
 });
 
 
-;define('boot/pipeline/_boot', ['require', 'exports', 'module', 'boot/pipeline/normalizeCjs', 'boot/pipeline/locateFlatPackage', 'boot/pipeline/fetchAsText', 'boot/pipeline/translateAsIs', 'boot/pipeline/translateWrapObjectLiteral', 'boot/pipeline/instantiateNode', 'boot/pipeline/instantiateScript', 'boot/lib/overrideIf', 'boot/lib/partial', 'boot/lib/package'], function (require, exports, module, $cram_r0, $cram_r1, $cram_r2, $cram_r3, $cram_r4, $cram_r5, $cram_r6, $cram_r7, $cram_r8, $cram_r9) {/** @license MIT License (c) copyright 2014 original authors */
+;define('boot/pipeline/_boot', ['require', 'exports', 'module', 'boot/pipeline/normalizeCjs', 'boot/pipeline/locateFlatPackage', 'boot/pipeline/locateAsIs', 'boot/pipeline/fetchAsText', 'boot/pipeline/translateAsIs', 'boot/pipeline/translateWrapObjectLiteral', 'boot/pipeline/instantiateNode', 'boot/pipeline/instantiateScript', 'boot/lib/overrideIf', 'boot/lib/partial', 'boot/lib/package', 'boot/lib/beget'], function (require, exports, module, $cram_r0, $cram_r1, $cram_r2, $cram_r3, $cram_r4, $cram_r5, $cram_r6, $cram_r7, $cram_r8, $cram_r9, $cram_r10, $cram_r11) {/** @license MIT License (c) copyright 2014 original authors */
 /** @author Brian Cavalier */
 /** @author John Hann */
 var normalizeCjs = $cram_r0;
 var locateFlatPackage = $cram_r1;
-var fetchAsText = $cram_r2;
-var translateAsIs = $cram_r3;
-var translateWrapObjectLiteral = $cram_r4;
-var instantiateNode = $cram_r5;
-var instantiateScript = $cram_r6;
-var overrideIf = $cram_r7;
-var partial = $cram_r8;
-var pkg = $cram_r9;
+var locateAsIs = $cram_r2;
+var fetchAsText = $cram_r3;
+var translateAsIs = $cram_r4;
+var translateWrapObjectLiteral = $cram_r5;
+var instantiateNode = $cram_r6;
+var instantiateScript = $cram_r7;
+var overrideIf = $cram_r8;
+var partial = $cram_r9;
+var pkg = $cram_r10;
+var beget = $cram_r11;
 
 module.exports = function (options) {
 	var modulePipeline, jsonPipeline;
@@ -623,7 +654,7 @@ module.exports = function (options) {
 
 	jsonPipeline = withOptions(options, {
 		normalize: normalizeCjs,
-		locate: locateFlatPackage,
+		locate: locateAsIs,
 		fetch: fetchAsText,
 		translate: translateWrapObjectLiteral,
 		instantiate: instantiateScript
@@ -631,8 +662,8 @@ module.exports = function (options) {
 
 	return {
 		applyTo: function (loader) {
-			overrideIf(loader, isBootModule, modulePipeline);
-			overrideIf(loader, isJsonFile, jsonPipeline);
+			overrideIf(isBootModule, loader, modulePipeline);
+			overrideIf(isJsonFile, loader, jsonPipeline);
 		}
 	};
 };
@@ -664,15 +695,6 @@ function withOptions (options, pipeline) {
 		pipeline[p] = partial(pipeline[p], [options]);
 	}
 	return pipeline;
-}
-
-function Begetter () {}
-function beget (base) {
-	var obj;
-	Begetter.prototype = base;
-	obj = new Begetter();
-	Begetter.prototype = null;
-	return obj;
 }
 
 });
