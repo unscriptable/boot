@@ -36,7 +36,16 @@ var Loader;
 			self.bootLoader(options, loadMain, failLoudly);
 		}
 		function loadMain (loader) {
-			// TODO: file an issue with es6-module-loader to implement .done()
+			// TODO HACK: we need to override loader to recognize our __es5Module flag
+			loader.import = (function (orig, get) {
+				return function (id) {
+					return orig.apply(this, arguments).then(function () {
+						return get(id);
+					});
+				}
+			}(loader.import, boot.legacyGetter(loader)));
+			loader.get = boot.legacyGetter(loader);
+			// END HACK
 			loader.import(options.bootMain).then(go, failLoudly);
 		}
 		function go (main) {
@@ -72,7 +81,7 @@ var Loader;
 			{
 				url: options.pipelineUrl,
 				loader: loader,
-				debug: options.debug
+				debug: options.debug || options.bootDebug
 			},
 			function () {
 				var pipeline = _get('boot/pipeline/_boot');
@@ -144,7 +153,7 @@ var Loader;
 		_store = this.legacySetter(options.loader);
 		this.fetchText(options.url, evalOrFail, errback);
 		function evalOrFail (source) {
-			if (options.debug) {
+			if (options.debug || options.bootDebug) {
 				// TODO: consider reusing this with lib/addSourceUrl
 				source += '\n/*\n//@ sourceURL='
 					+ options.url.replace(/\s/g, '%20')
@@ -241,8 +250,9 @@ var Loader;
 	};
 
 	boot.legacyGetter = function (loader) {
+		var get = loader.get; // TODO: remove this when we add __es5Module to pipelines
 		return function (id) {
-			var wrapped = loader.get(id);
+			var wrapped = get.call(loader, id);
 			if (wrapped && wrapped.__es5Module) {
 				return wrapped.__es5Module;
 			}
