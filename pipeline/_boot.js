@@ -11,6 +11,7 @@ var instantiateScript = require('./instantiateScript');
 var overrideIf = require('../lib/overrideIf');
 var partial = require('../lib/partial');
 var pkg = require('../lib/package');
+var beget = require('../lib/beget');
 
 module.exports = function (options) {
 	var modulePipeline, jsonPipeline;
@@ -71,13 +72,4 @@ function withOptions (options, pipeline) {
 		pipeline[p] = partial(pipeline[p], [options]);
 	}
 	return pipeline;
-}
-
-function Begetter () {}
-function beget (base) {
-	var obj;
-	Begetter.prototype = base;
-	obj = new Begetter();
-	Begetter.prototype = null;
-	return obj;
 }
