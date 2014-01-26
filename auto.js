@@ -23,21 +23,36 @@ function autoConfigure (context) {
 	processors = [];
 
 	for (i = 0; i < howMany; i++) {
-		// TODO: this won't work for user-supplied urls
-		if (metaProcessors[urls[i]]) {
-			processors.push(metaProcessors[urls[i]].process(context));
-		}
-		Promise.all(processors).then(done, log);
+		processors.push(process(context, urls[i]));
 	}
+	Promise.all(processors).then(done, log);
 
 	function done (metadatas) {
-		console.log(metadatas);
+		write('done! Found the following packages:');
+		write(Object.keys(context.packages));
 		console.log(context);
+		function write (msg) {
+			document.body.appendChild(document.createElement('p')).innerHTML = msg;
+		}
 	}
 
 	function log (ex) {
 		console.error('Did not load metadata', ex);
 		console.error(ex.stack);
+	}
+}
+
+function process (context, url) {
+	var filename;
+	filename = url.split('/').pop();
+	if ('bower.json' === filename) {
+		return bowerMetaData.process(context, url);
+	}
+	else if ('package.json' === filename) {
+//		return npmMetaData.process(context);
+	}
+	else {
+		throw new Error('Unknown metadata type: (' + filename + ') at ' + url);
 	}
 }
 
