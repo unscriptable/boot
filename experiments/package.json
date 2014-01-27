@@ -1,8 +1,9 @@
 {
-	"name": "beck",
+	"name": "experiments",
 	"version": "0.1.6",
 	"description": "An ES6 Module Loader pipeline toolkit and shim.",
 	"keywords": ["beck", "commonjs", "modules", "amd", "module", "es6"],
+	"main": "displayMetadata",
 	"licenses": [
 		{
 			"type": "MIT",

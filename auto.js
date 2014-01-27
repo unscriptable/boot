@@ -6,6 +6,7 @@ module.exports = {
 };
 
 var bowerMetaData = require('./lib/metadata/bower');
+var npmMetaData = require('./lib/metadata/npm');
 var path = require('./lib/path');
 
 var defaultMeta = 'boot.json,bower.json,package.json';
@@ -61,7 +62,7 @@ function process (context, url) {
 		return bowerMetaData.process(context, url);
 	}
 	else if ('package.json' === filename) {
-//		return npmMetaData.process(context);
+		return npmMetaData.process(context, url);
 	}
 	else {
 		throw new Error('Unknown metadata type: (' + filename + ') at ' + url);
