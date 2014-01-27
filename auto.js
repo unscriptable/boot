@@ -6,6 +6,7 @@ module.exports = {
 };
 
 var bowerMetaData = require('./lib/metadata/bower');
+var path = require('./lib/path');
 
 var defaultMeta = 'boot.json,bower.json,package.json';
 
@@ -25,21 +26,31 @@ function autoConfigure (context) {
 	for (i = 0; i < howMany; i++) {
 		processors.push(process(context, urls[i]));
 	}
-	Promise.all(processors).then(done, log);
+	Promise.all(processors).then(done, logError);
 
 	function done (metadatas) {
-		write('done! Found the following packages:');
-		write(Object.keys(context.packages));
-		console.log(context);
-		function write (msg) {
-			document.body.appendChild(document.createElement('p')).innerHTML = msg;
+		var i, mainFile;
+		for (i = 0; i < metadatas.length; i++) {
+			if (metadatas[i] && metadatas[i].main) {
+				mainFile = path.joinPaths(metadatas[i].name, metadatas[i].main);
+				return runMain(context, mainFile);
+			}
 		}
 	}
 
-	function log (ex) {
+	function logError (ex) {
 		console.error('Did not load metadata', ex);
 		console.error(ex.stack);
 	}
+}
+
+function runMain (context, mainFile) {
+	return context.loader.import(mainFile)
+		.then(function (main) {
+			if (typeof main.main === 'function') {
+				main.main(context);
+			}
+		});
 }
 
 function process (context, url) {
