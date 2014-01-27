@@ -87,7 +87,8 @@ module.exports = {
 	joinPaths: joinPaths,
 	ensureEndSlash: ensureEndSlash,
 	ensureExt: ensureExt,
-	reduceLeadingDots: reduceLeadingDots
+	reduceLeadingDots: reduceLeadingDots,
+	splitDirAndFile: splitDirAndFile
 };
 
 /**
@@ -195,46 +196,14 @@ function reduceLeadingDots (childId, baseId) {
 	}
 }
 
-});
-
-
-;define('boot/lib/fetchText', ['require', 'exports', 'module'], function (require, exports, module) {module.exports = fetchText;
-
-function fetchText (url, callback, errback) {
-	var xhr;
-	xhr = new XMLHttpRequest();
-	xhr.open('GET', url, true);
-	xhr.onreadystatechange = function () {
-		if (xhr.readyState === 4) {
-			if (xhr.status < 400) {
-				callback(xhr.responseText);
-			}
-			else {
-				errback(
-					new Error(
-						'fetchText() failed. url: "' + url
-						+ '" status: ' + xhr.status + ' - ' + xhr.statusText
-					)
-				);
-			}
-		}
-	};
-	xhr.send(null);
-};
-
-});
-
-
-;define('boot/lib/addSourceUrl', ['require', 'exports', 'module'], function (require, exports, module) {/** @license MIT License (c) copyright 2014 original authors */
-/** @author Brian Cavalier */
-/** @author John Hann */
-module.exports = addSourceUrl;
-
-function addSourceUrl (url, source) {
-	return source
-		+ '\n/*\n//@ sourceURL='
-		+ url.replace(/\s/g, '%20')
-		+ '\n*/\n';
+function splitDirAndFile (url) {
+	var parts, file;
+	parts = url.split('/');
+	file = parts.pop();
+	return [
+		parts.join('/'),
+		file
+	];
 }
 
 });
@@ -309,6 +278,48 @@ function failLoud (ex) {
 	throw ex;
 }
 
+
+});
+
+
+;define('boot/lib/addSourceUrl', ['require', 'exports', 'module'], function (require, exports, module) {/** @license MIT License (c) copyright 2014 original authors */
+/** @author Brian Cavalier */
+/** @author John Hann */
+module.exports = addSourceUrl;
+
+function addSourceUrl (url, source) {
+	return source
+		+ '\n/*\n//@ sourceURL='
+		+ url.replace(/\s/g, '%20')
+		+ '\n*/\n';
+}
+
+});
+
+
+;define('boot/lib/fetchText', ['require', 'exports', 'module'], function (require, exports, module) {module.exports = fetchText;
+
+function fetchText (url, callback, errback) {
+	var xhr;
+	xhr = new XMLHttpRequest();
+	xhr.open('GET', url, true);
+	xhr.onreadystatechange = function () {
+		if (xhr.readyState === 4) {
+			if (xhr.status < 400) {
+				callback(xhr.responseText);
+			}
+			else {
+				errback(
+					new Error(
+						'fetchText() failed. url: "' + url
+						+ '" status: ' + xhr.status + ' - ' + xhr.statusText
+					)
+				);
+			}
+		}
+	};
+	xhr.send(null);
+};
 
 });
 
