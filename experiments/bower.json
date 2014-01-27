@@ -10,7 +10,7 @@
     "module",
     "es6"
   ],
-  "main": "main",
+  "main": "displayMetadata",
   "ignore": [
     "node_modules",
     "bower_components"
