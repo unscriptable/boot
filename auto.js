@@ -29,11 +29,12 @@ function autoConfigure (context) {
 	Promise.all(processors).then(done, logError);
 
 	function done (metadatas) {
-		var i, mainFile;
+		var i, meta, mainModule;
 		for (i = 0; i < metadatas.length; i++) {
-			if (metadatas[i] && metadatas[i].main) {
-				mainFile = path.joinPaths(metadatas[i].name, metadatas[i].main);
-				return runMain(context, mainFile);
+			meta = metadatas[i];
+			if (meta && meta.main) {
+				mainModule = path.joinPaths(meta.name, meta.main);
+				return runMain(context, mainModule);
 			}
 		}
 	}
@@ -44,8 +45,8 @@ function autoConfigure (context) {
 	}
 }
 
-function runMain (context, mainFile) {
-	return context.loader.import(mainFile)
+function runMain (context, mainModule) {
+	return context.loader.import(mainModule)
 		.then(function (main) {
 			if (typeof main.main === 'function') {
 				main.main(context);
@@ -55,7 +56,7 @@ function runMain (context, mainFile) {
 
 function process (context, url) {
 	var filename;
-	filename = url.split('/').pop();
+	filename = path.splitDirAndFile(url)[1];
 	if ('bower.json' === filename) {
 		return bowerMetaData.process(context, url);
 	}
