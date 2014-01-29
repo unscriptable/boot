@@ -4,7 +4,7 @@
 /** @author John Hann */
 module.exports = locateAsIs;
 
-function locateAsIs (options, load) {
+function locateAsIs (load) {
 	return load.name;
 }
 
@@ -209,6 +209,48 @@ function splitDirAndFile (url) {
 });
 
 
+;define('boot/lib/fetchText', ['require', 'exports', 'module'], function (require, exports, module) {module.exports = fetchText;
+
+function fetchText (url, callback, errback) {
+	var xhr;
+	xhr = new XMLHttpRequest();
+	xhr.open('GET', url, true);
+	xhr.onreadystatechange = function () {
+		if (xhr.readyState === 4) {
+			if (xhr.status < 400) {
+				callback(xhr.responseText);
+			}
+			else {
+				errback(
+					new Error(
+						'fetchText() failed. url: "' + url
+						+ '" status: ' + xhr.status + ' - ' + xhr.statusText
+					)
+				);
+			}
+		}
+	};
+	xhr.send(null);
+};
+
+});
+
+
+;define('boot/lib/addSourceUrl', ['require', 'exports', 'module'], function (require, exports, module) {/** @license MIT License (c) copyright 2014 original authors */
+/** @author Brian Cavalier */
+/** @author John Hann */
+module.exports = addSourceUrl;
+
+function addSourceUrl (url, source) {
+	return source
+		+ '\n/*\n//@ sourceURL='
+		+ url.replace(/\s/g, '%20')
+		+ '\n*/\n';
+}
+
+});
+
+
 ;define('boot/lib/Thenable', ['require', 'exports', 'module'], function (require, exports, module) {/** @license MIT License (c) copyright 2014 original authors */
 /** @author Brian Cavalier */
 /** @author John Hann */
@@ -278,48 +320,6 @@ function failLoud (ex) {
 	throw ex;
 }
 
-
-});
-
-
-;define('boot/lib/addSourceUrl', ['require', 'exports', 'module'], function (require, exports, module) {/** @license MIT License (c) copyright 2014 original authors */
-/** @author Brian Cavalier */
-/** @author John Hann */
-module.exports = addSourceUrl;
-
-function addSourceUrl (url, source) {
-	return source
-		+ '\n/*\n//@ sourceURL='
-		+ url.replace(/\s/g, '%20')
-		+ '\n*/\n';
-}
-
-});
-
-
-;define('boot/lib/fetchText', ['require', 'exports', 'module'], function (require, exports, module) {module.exports = fetchText;
-
-function fetchText (url, callback, errback) {
-	var xhr;
-	xhr = new XMLHttpRequest();
-	xhr.open('GET', url, true);
-	xhr.onreadystatechange = function () {
-		if (xhr.readyState === 4) {
-			if (xhr.status < 400) {
-				callback(xhr.responseText);
-			}
-			else {
-				errback(
-					new Error(
-						'fetchText() failed. url: "' + url
-						+ '" status: ' + xhr.status + ' - ' + xhr.statusText
-					)
-				);
-			}
-		}
-	};
-	xhr.send(null);
-};
 
 });
 
@@ -425,24 +425,8 @@ module.exports = normalizeCjs;
 
 var reduceLeadingDots = path.reduceLeadingDots;
 
-function normalizeCjs (options, name, refererName, refererUrl) {
+function normalizeCjs (name, refererName, refererUrl) {
 	return reduceLeadingDots(String(name), refererName || '');
-}
-
-});
-
-
-;define('boot/pipeline/translateAsIs', ['require', 'exports', 'module', 'boot/lib/addSourceUrl'], function (require, exports, module, $cram_r0) {/** @license MIT License (c) copyright 2014 original authors */
-/** @author Brian Cavalier */
-/** @author John Hann */
-module.exports = translateAsIs;
-
-var addSourceUrl = $cram_r0;
-
-function translateAsIs (options, load) {
-	return options.debug
-		? addSourceUrl(load.address, load.source)
-		: load.source;
 }
 
 });
@@ -456,11 +440,28 @@ module.exports = fetchAsText;
 var fetchText = $cram_r0;
 var Thenable = $cram_r1;
 
-function fetchAsText (options, load) {
+function fetchAsText (load) {
 	return Thenable(function(resolve, reject) {
 		fetchText(load.address, resolve, reject);
 	});
 
+}
+
+});
+
+
+;define('boot/pipeline/translateAsIs', ['require', 'exports', 'module', 'boot/lib/addSourceUrl'], function (require, exports, module, $cram_r0) {/** @license MIT License (c) copyright 2014 original authors */
+/** @author Brian Cavalier */
+/** @author John Hann */
+module.exports = translateAsIs;
+
+var addSourceUrl = $cram_r0;
+
+function translateAsIs (load) {
+	var options = load.metadata.boot;
+	return options.debug
+		? addSourceUrl(load.address, load.source)
+		: load.source;
 }
 
 });
@@ -474,7 +475,7 @@ var nodeFactory = $cram_r1;
 
 module.exports = instantiateNode;
 
-function instantiateNode (options, load) {
+function instantiateNode (load) {
 	var factory;
 
 	load.loader = this;
@@ -499,7 +500,7 @@ module.exports = instantiateScript;
 
 var globalFactory = $cram_r0;
 
-function instantiateScript (options, load) {
+function instantiateScript (load) {
 	var factory = globalFactory(this, load);
 	return {
 		execute: function () {
@@ -518,8 +519,10 @@ module.exports = locateFlatPackage;
 
 var path = $cram_r0;
 
-function locateFlatPackage (options, load) {
-	var parts, packageName, moduleName, descriptor, location, ext;
+function locateFlatPackage (load) {
+	var options, parts, packageName, moduleName, descriptor, location, ext;
+
+	options = load.metadata.boot;
 
 	// Note: name should be normalized before it reaches this locate function.
 	parts = load.name.split('/');
@@ -622,10 +625,10 @@ module.exports = translateWrapObjectLiteral;
 
 var translateAsIs = $cram_r0;
 
-function translateWrapObjectLiteral (options, load) {
+function translateWrapObjectLiteral (load) {
 	// The \n allows for a comment on the last line!
 	load.source = '(' + load.source + '\n)';
-	return translateAsIs(options, load);
+	return translateAsIs(load);
 }
 
 });
@@ -655,21 +658,21 @@ module.exports = function (options) {
 		options.packages = pkg.normalizeCollection(options.packages);
 	}
 
-	modulePipeline = withOptions(options, {
+	modulePipeline = {
 		normalize: normalizeCjs,
-		locate: locateFlatPackage,
+		locate: withOptions(options, locateFlatPackage),
 		fetch: fetchAsText,
 		translate: translateAsIs,
 		instantiate: instantiateNode
-	});
+	};
 
-	jsonPipeline = withOptions(options, {
+	jsonPipeline = {
 		normalize: normalizeCjs,
-		locate: locateAsIs,
+		locate: withOptions(options, locateAsIs),
 		fetch: fetchAsText,
 		translate: translateWrapObjectLiteral,
 		instantiate: instantiateScript
-	});
+	};
 
 	return {
 		applyTo: function (loader) {
@@ -701,11 +704,11 @@ function getModuleId (arg) {
 	return typeof arg === 'object' ? arg.name : arg;
 }
 
-function withOptions (options, pipeline) {
-	for (var p in pipeline) {
-		pipeline[p] = partial(pipeline[p], [options]);
-	}
-	return pipeline;
+function withOptions (options, func) {
+	return function (load) {
+		load.metadata.boot = options;
+		return func.call(this, load);
+	};
 }
 
 });

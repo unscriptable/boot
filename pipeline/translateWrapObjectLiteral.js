@@ -5,8 +5,8 @@ module.exports = translateWrapObjectLiteral;
 
 var translateAsIs = require('./translateAsIs');
 
-function translateWrapObjectLiteral (options, load) {
+function translateWrapObjectLiteral (load) {
 	// The \n allows for a comment on the last line!
 	load.source = '(' + load.source + '\n)';
-	return translateAsIs(options, load);
+	return translateAsIs(load);
 }

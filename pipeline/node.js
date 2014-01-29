@@ -6,21 +6,20 @@ var locateNpm = require('./locateNpm');
 var fetchAsText = require('./fetchAsText');
 var translateAsIs = require('./translateAsIs');
 var instantiateNode = require('./instantiateNode');
-var partial = require('boot/lib/partial');
 
 module.exports = function (options) {
 	return withOptions(options, {
 		normalize: normalizeCjs,
-		locate: locateNpm,
+		locate: withOptions(options, locateNpm),
 		fetch: fetchAsText,
 		translate: translateAsIs,
 		instantiate: instantiateNode
 	});
 };
 
-function withOptions (options, pipeline) {
-	for (var p in pipeline) {
-		pipeline[p] = partial(pipeline[p], [options]);
-	}
-	return pipeline;
+function withOptions (options, func) {
+	return function (load) {
+		load.metadata.boot = options;
+		return func.call(this, load);
+	};
 }

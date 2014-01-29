@@ -10,7 +10,6 @@ var translateWrapObjectLiteral = require('./translateWrapObjectLiteral');
 var instantiateNode = require('./instantiateNode');
 var instantiateScript = require('./instantiateScript');
 var overrideIf = require('../lib/overrideIf');
-var partial = require('../lib/partial');
 var pkg = require('../lib/package');
 var beget = require('../lib/beget');
 
@@ -22,21 +21,21 @@ module.exports = function (options) {
 		options.packages = pkg.normalizeCollection(options.packages);
 	}
 
-	modulePipeline = withOptions(options, {
+	modulePipeline = {
 		normalize: normalizeCjs,
-		locate: locateFlatPackage,
+		locate: withOptions(options, locateFlatPackage),
 		fetch: fetchAsText,
 		translate: translateAsIs,
 		instantiate: instantiateNode
-	});
+	};
 
-	jsonPipeline = withOptions(options, {
+	jsonPipeline = {
 		normalize: normalizeCjs,
-		locate: locateAsIs,
+		locate: withOptions(options, locateAsIs),
 		fetch: fetchAsText,
 		translate: translateWrapObjectLiteral,
 		instantiate: instantiateScript
-	});
+	};
 
 	return {
 		applyTo: function (loader) {
@@ -68,9 +67,9 @@ function getModuleId (arg) {
 	return typeof arg === 'object' ? arg.name : arg;
 }
 
-function withOptions (options, pipeline) {
-	for (var p in pipeline) {
-		pipeline[p] = partial(pipeline[p], [options]);
-	}
-	return pipeline;
+function withOptions (options, func) {
+	return function (load) {
+		load.metadata.boot = options;
+		return func.call(this, load);
+	};
 }

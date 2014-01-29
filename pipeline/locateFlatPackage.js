@@ -5,8 +5,10 @@ module.exports = locateFlatPackage;
 
 var path = require('../lib/path');
 
-function locateFlatPackage (options, load) {
-	var parts, packageName, moduleName, descriptor, location, ext;
+function locateFlatPackage (load) {
+	var options, parts, packageName, moduleName, descriptor, location, ext;
+
+	options = load.metadata.boot;
 
 	// Note: name should be normalized before it reaches this locate function.
 	parts = load.name.split('/');

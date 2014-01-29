@@ -3,6 +3,6 @@
 /** @author John Hann */
 module.exports = normalizeAsIs;
 
-function normalizeAsIs (options, name, refererName, refererUrl) {
+function normalizeAsIs (name, refererName, refererUrl) {
 	return String(name);
 }
