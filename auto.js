@@ -5,15 +5,10 @@ module.exports = {
 	main: autoConfigure
 };
 
-var bowerMetaData = require('./lib/metadata/bower');
-var npmMetaData = require('./lib/metadata/npm');
-var path = require('./lib/path');
+var metadata = require('./lib/metadata');
 
-var defaultMeta = 'boot.json,bower.json,package.json';
-
-var metaProcessors = {
-	'bower.json': bowerMetaData
-};
+//var defaultMeta = 'boot.json,bower.json,package.json';
+var defaultMeta = 'bower.json,package.json';
 
 function autoConfigure (context) {
 	var urls, processors, howMany, i;
@@ -25,19 +20,24 @@ function autoConfigure (context) {
 	processors = [];
 
 	for (i = 0; i < howMany; i++) {
-		processors.push(process(context, urls[i]));
+		processors.push(metadata.crawl(context, urls[i]));
 	}
 	Promise.all(processors).then(done, logError);
 
 	function done (metadatas) {
+		// TODO: configure loader with package descriptors here
 		var i, meta, mainModule;
 		for (i = 0; i < metadatas.length; i++) {
 			meta = metadatas[i];
 			if (meta && meta.main) {
-				mainModule = path.joinPaths(meta.name, meta.main);
+				mainModule = meta.name;
+				// TODO: remove this work-around when package mains are working
+				mainModule = meta.main;
 				return runMain(context, mainModule);
 			}
 		}
+		// TODO: if no main modules found, look for one in a conventional place
+		// TODO: warn if multiple main modules were found, but only the first was run
 	}
 
 	function logError (ex) {
@@ -49,24 +49,13 @@ function autoConfigure (context) {
 function runMain (context, mainModule) {
 	return context.loader.import(mainModule)
 		.then(function (main) {
+			// TODO: get function-modules working
+			// and change this next part to assume a function-module
+			// if (typeof main === 'function') main(context);
 			if (typeof main.main === 'function') {
 				main.main(context);
 			}
 		});
-}
-
-function process (context, url) {
-	var filename;
-	filename = path.splitDirAndFile(url)[1];
-	if ('bower.json' === filename) {
-		return bowerMetaData.process(context, url);
-	}
-	else if ('package.json' === filename) {
-		return npmMetaData.process(context, url);
-	}
-	else {
-		throw new Error('Unknown metadata type: (' + filename + ') at ' + url);
-	}
 }
 
 // 1. Load metadata files (.json files) --> done
