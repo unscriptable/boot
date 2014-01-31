@@ -15,6 +15,9 @@ var Loader;
 
 	boot.scriptUrl = getCurrentScript();
 	boot.scriptPath = getPathFromUrl(boot.scriptUrl);
+	boot.baseUrl = document
+		? getPathFromUrl(document.location.href)
+		: __dirname;
 
 	options = {
 		// TODO: switch to dist when es6-module-loader seems stable
@@ -73,7 +76,7 @@ var Loader;
 
 		// set options
 		options.loader = loader;
-		options.baseUrl = boot.scriptPath;
+		options.baseUrl = boot.baseUrl;
 		options.packages = { boot: boot.scriptUrl };
 
 		// fetch default pipeline (in a simple amd-wrapped node bundle)
