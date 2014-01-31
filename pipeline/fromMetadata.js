@@ -50,14 +50,20 @@ function createIsConfigured (context) {
 		var pkgUid;
 		if (typeof arg === 'string') {
 			// arg is an abstract name
-			pkgUid = arg.split('/')[0];
-			return pkgUid in packages;
+			if (arg.charAt(0) === '.') {
+				// arg is relative, use the referer's name
+				arg = arguments[1];
+				pkgUid = arg.split('#')[0];
+			}
+			else {
+				pkgUid = arg.split('/')[0];
+			}
 		}
 		else {
 			// arg is a load context with an uid
 			pkgUid = arg.name.split('#')[0];
-			return pkgUid in packages;
 		}
+		return pkgUid in packages;
 	};
 }
 
