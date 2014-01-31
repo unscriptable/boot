@@ -40,6 +40,8 @@ var Loader;
 		}
 		function loadMain (loader) {
 			// TODO HACK: we need to override loader to recognize our __es5Module flag
+			// we can get rid of this when we consolidate boot.js with _bootPipeline.js
+			// and boot uses id transformation.
 			loader.import = (function (orig, get) {
 				return function (id) {
 					return orig.apply(this, arguments).then(function () {
