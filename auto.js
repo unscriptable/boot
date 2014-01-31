@@ -3,12 +3,12 @@
 /** @author John Hann */
 var metadata = require('./lib/metadata');
 var fromMetadata = require('./pipeline/fromMetadata');
+var beget = require('./lib/beget');
 
 module.exports = {
 	main: autoConfigure
 };
 
-//var defaultMeta = 'boot.json,bower.json,package.json';
 var defaultMeta = 'bower.json,package.json';
 
 function autoConfigure (context) {
@@ -61,10 +61,10 @@ function runMain (context, mainModule) {
 			// and change this next part to assume a function-module
 			// if (typeof main === 'function') main(context);
 			if (typeof main === 'function') {
-				main(context);
+				main(beget(context));
 			}
 			else if (typeof main.main === 'function') {
-				main.main(context);
+				main.main(beget(context));
 			}
 		});
 }
