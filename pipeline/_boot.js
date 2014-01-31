@@ -2,7 +2,7 @@
 /** @author Brian Cavalier */
 /** @author John Hann */
 var normalizeCjs = require('./normalizeCjs');
-var locateFlatPackage = require('./locateFlatPackage');
+var locatePackage = require('./locatePackage');
 var locateAsIs = require('./locateAsIs');
 var fetchAsText = require('./fetchAsText');
 var translateAsIs = require('./translateAsIs');
@@ -13,17 +13,19 @@ var overrideIf = require('../lib/overrideIf');
 var pkg = require('../lib/package');
 var beget = require('../lib/beget');
 
-module.exports = function (options) {
+module.exports = _bootPipeline;
+
+function _bootPipeline (context) {
 	var modulePipeline, jsonPipeline;
 
-	options = beget(options);
-	if (options.packages) {
-		options.packages = pkg.normalizeCollection(options.packages);
+	context = beget(context);
+	if (context.packages) {
+		context.packages = pkg.normalizeCollection(context.packages);
 	}
 
 	modulePipeline = {
 		normalize: normalizeCjs,
-		locate: withOptions(options, locateFlatPackage),
+		locate: withContext(context, locatePackage),
 		fetch: fetchAsText,
 		translate: translateAsIs,
 		instantiate: instantiateNode
@@ -31,7 +33,7 @@ module.exports = function (options) {
 
 	jsonPipeline = {
 		normalize: normalizeCjs,
-		locate: withOptions(options, locateAsIs),
+		locate: withContext(context, locateAsIs),
 		fetch: fetchAsText,
 		translate: translateWrapObjectLiteral,
 		instantiate: instantiateScript
@@ -43,7 +45,7 @@ module.exports = function (options) {
 			overrideIf(isJsonFile, loader, jsonPipeline);
 		}
 	};
-};
+}
 
 function isBootModule (arg) {
 	var moduleId, packageId;
@@ -67,9 +69,9 @@ function getModuleId (arg) {
 	return typeof arg === 'object' ? arg.name : arg;
 }
 
-function withOptions (options, func) {
+function withContext (context, func) {
 	return function (load) {
-		load.metadata.boot = options;
+		load.metadata.boot = context;
 		return func.call(this, load);
 	};
 }

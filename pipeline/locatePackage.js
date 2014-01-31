@@ -1,18 +1,25 @@
 /** @license MIT License (c) copyright 2014 original authors */
 /** @author Brian Cavalier */
 /** @author John Hann */
-module.exports = locateFlatPackage;
+module.exports = locatePackage;
 
 var path = require('../lib/path');
 
-function locateFlatPackage (load) {
+function locatePackage (load) {
 	var options, parts, packageName, moduleName, descriptor, location, ext;
 
 	options = load.metadata.boot;
 
 	// Note: name should be normalized before it reaches this locate function.
-	parts = load.name.split('/');
-	packageName = parts.shift();
+	parts = load.name.split('#');
+	if (parts.length > 1) {
+		packageName = parts.shift(); // this is the package uid
+		parts = load.name.split('/').slice(1); // pull off package name
+	}
+	else {
+		parts = load.name.split('/');
+		packageName = parts.shift();
+	}
 
 	if (!options.packages) throw new Error('Packages not provided: ' + load.name);
 

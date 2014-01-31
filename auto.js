@@ -1,11 +1,12 @@
 /** @license MIT License (c) copyright 2014 original authors */
 /** @author Brian Cavalier */
 /** @author John Hann */
+var metadata = require('./lib/metadata');
+var fromMetadata = require('./pipeline/fromMetadata');
+
 module.exports = {
 	main: autoConfigure
 };
-
-var metadata = require('./lib/metadata');
 
 //var defaultMeta = 'boot.json,bower.json,package.json';
 var defaultMeta = 'bower.json,package.json';
@@ -25,14 +26,13 @@ function autoConfigure (context) {
 	Promise.all(processors).then(done, logError);
 
 	function done (metadatas) {
-		// TODO: configure loader with package descriptors here
+		configureLoader(context);
 		var i, meta, mainModule;
 		for (i = 0; i < metadatas.length; i++) {
 			meta = metadatas[i];
 			if (meta && meta.main) {
-				mainModule = meta.name;
-				// TODO: remove this work-around when package mains are working
-				mainModule = meta.main;
+				// TODO: implement main modules
+				mainModule = meta.name + '/' + meta.main;
 				return runMain(context, mainModule);
 			}
 		}
@@ -46,20 +46,25 @@ function autoConfigure (context) {
 	}
 }
 
+function configureLoader (context) {
+	var pipeline = fromMetadata(context);
+	pipeline.applyTo(context.loader);
+	return context;
+}
+
 function runMain (context, mainModule) {
-	return context.loader.import(mainModule)
+	// friggin es6 loader doesn't run normalize on dynamic import!!!!
+	var normalized = context.loader.normalize(mainModule, '');
+	return context.loader.import(normalized)
 		.then(function (main) {
 			// TODO: get function-modules working
 			// and change this next part to assume a function-module
 			// if (typeof main === 'function') main(context);
-			if (typeof main.main === 'function') {
+			if (typeof main === 'function') {
+				main(context);
+			}
+			else if (typeof main.main === 'function') {
 				main.main(context);
 			}
 		});
 }
-
-// 1. Load metadata files (.json files) --> done
-// 2. Extract metadata about packages and main module(s) --> done
-// 3. Get metadata files for each package (recursive) --> done
-// 4. Configure package descriptors and create pipelines for each
-// 5. Load the application's main.

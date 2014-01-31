@@ -34,27 +34,6 @@ function choice (predicate, a, b) {
 });
 
 
-;define('boot/lib/partial', ['require', 'exports', 'module'], function (require, exports, module) {/** @license MIT License (c) copyright 2014 original authors */
-/** @author Brian Cavalier */
-/** @author John Hann */
-module.exports = partial;
-
-/**
- * Returns a function that has part of its parameters captured.
- * @param {Function} func
- * @param {Array} args
- * @returns {Function}
- */
-function partial (func, args) {
-	return function () {
-		var copy = args.concat(args.slice.apply(arguments));
-		return func.apply(this, copy);
-	};
-}
-
-});
-
-
 ;define('boot/lib/beget', ['require', 'exports', 'module'], function (require, exports, module) {/** @license MIT License (c) copyright 2014 original authors */
 /** @author Brian Cavalier */
 /** @author John Hann */
@@ -236,16 +215,48 @@ function fetchText (url, callback, errback) {
 });
 
 
-;define('boot/lib/addSourceUrl', ['require', 'exports', 'module'], function (require, exports, module) {/** @license MIT License (c) copyright 2014 original authors */
+;define('boot/lib/nodeFactory', ['require', 'exports', 'module'], function (require, exports, module) {/** @license MIT License (c) copyright 2014 original authors */
 /** @author Brian Cavalier */
 /** @author John Hann */
-module.exports = addSourceUrl;
+module.exports = nodeFactory;
 
-function addSourceUrl (url, source) {
-	return source
-		+ '\n/*\n//@ sourceURL='
-		+ url.replace(/\s/g, '%20')
-		+ '\n*/\n';
+var nodeEval = new Function(
+	'require', 'exports', 'module', 'global',
+	'eval(arguments[4]);'
+);
+
+var global;
+
+if (typeof global === 'undefined') {
+	global = window;
+}
+
+function nodeFactory (loader, load) {
+	var require, module;
+
+	require = function (id) {
+		var abs, imports;
+		abs = loader.normalize(id, load.name);
+		imports = loader.get(abs);
+		return '__es5Module' in imports ? imports['__es5Module'] : imports;
+	};
+	module = { id: load.name, uri: load.address, exports: {} };
+
+	return function () {
+		// TODO: use loader.global when es6-module-loader implements it
+		var g = global, exports;
+		nodeEval(require, module.exports, module, g, load.source);
+		exports = module.exports;
+		if (typeof exports !== 'object') {
+			exports = {
+				// for real ES6 modules to consume this module
+				'default': exports,
+				// for es5 modules
+				'__es5Module': exports
+			};
+		}
+		return exports;
+	};
 }
 
 });
@@ -324,6 +335,21 @@ function failLoud (ex) {
 });
 
 
+;define('boot/lib/addSourceUrl', ['require', 'exports', 'module'], function (require, exports, module) {/** @license MIT License (c) copyright 2014 original authors */
+/** @author Brian Cavalier */
+/** @author John Hann */
+module.exports = addSourceUrl;
+
+function addSourceUrl (url, source) {
+	return source
+		+ '\n/*\n//@ sourceURL='
+		+ url.replace(/\s/g, '%20')
+		+ '\n*/\n';
+}
+
+});
+
+
 ;define('boot/lib/findRequires', ['require', 'exports', 'module'], function (require, exports, module) {/** @license MIT License (c) copyright 2014 original authors */
 /** @author Brian Cavalier */
 /** @author John Hann */
@@ -364,42 +390,6 @@ function findRequires (source) {
 });
 
 
-;define('boot/lib/nodeFactory', ['require', 'exports', 'module'], function (require, exports, module) {/** @license MIT License (c) copyright 2014 original authors */
-/** @author Brian Cavalier */
-/** @author John Hann */
-module.exports = nodeFactory;
-
-var nodeEval = new Function(
-	'require', 'exports', 'module', 'global',
-	'eval(arguments[4]);'
-);
-
-var global;
-
-if (typeof global === 'undefined') {
-	global = window;
-}
-
-function nodeFactory (loader, load) {
-	var require, module;
-
-	require = function (id) {
-		var abs = loader.normalize(id, load.name);
-		return loader.get(abs);
-	};
-	module = { id: load.name, uri: load.address, exports: {} };
-
-	return function () {
-		// TODO: use loader.global when es6-module-loader implements it
-		var g = global;
-		nodeEval(require, module.exports, module, g, load.source);
-		return module.exports;
-	};
-}
-
-});
-
-
 ;define('boot/lib/globalFactory', ['require', 'exports', 'module'], function (require, exports, module) {/** @license MIT License (c) copyright 2014 original authors */
 /** @author Brian Cavalier */
 /** @author John Hann */
@@ -416,17 +406,44 @@ function globalFactory (loader, load) {
 });
 
 
-;define('boot/pipeline/normalizeCjs', ['require', 'exports', 'module', 'boot/lib/path'], function (require, exports, module, $cram_r0) {/** @license MIT License (c) copyright 2014 original authors */
+;define('boot/pipeline/locatePackage', ['require', 'exports', 'module', 'boot/lib/path'], function (require, exports, module, $cram_r0) {/** @license MIT License (c) copyright 2014 original authors */
 /** @author Brian Cavalier */
 /** @author John Hann */
+module.exports = locatePackage;
+
 var path = $cram_r0;
 
-module.exports = normalizeCjs;
+function locatePackage (load) {
+	var options, parts, packageName, moduleName, descriptor, location, ext;
 
-var reduceLeadingDots = path.reduceLeadingDots;
+	options = load.metadata.boot;
 
-function normalizeCjs (name, refererName, refererUrl) {
-	return reduceLeadingDots(String(name), refererName || '');
+	// Note: name should be normalized before it reaches this locate function.
+	parts = load.name.split('#');
+	if (parts.length > 1) {
+		packageName = parts.shift(); // this is the package uid
+		parts = load.name.split('/').slice(1); // pull off package name
+	}
+	else {
+		parts = load.name.split('/');
+		packageName = parts.shift();
+	}
+
+	if (!options.packages) throw new Error('Packages not provided: ' + load.name);
+
+	descriptor = options.packages[packageName];
+	if (!descriptor) throw new Error('Package not found: ' + load.name);
+
+	moduleName = parts.join('/') || descriptor.main;
+	location = descriptor.location;
+	ext = options.defaultExt || '.js';
+
+	// prepend baseUrl
+	if (!path.isAbsUrl(location) && options.baseUrl) {
+		location = path.joinPaths(options.baseUrl, location);
+	}
+
+	return path.joinPaths(location, path.ensureExt(moduleName, ext));
 }
 
 });
@@ -512,37 +529,17 @@ function instantiateScript (load) {
 });
 
 
-;define('boot/pipeline/locateFlatPackage', ['require', 'exports', 'module', 'boot/lib/path'], function (require, exports, module, $cram_r0) {/** @license MIT License (c) copyright 2014 original authors */
+;define('boot/pipeline/normalizeCjs', ['require', 'exports', 'module', 'boot/lib/path'], function (require, exports, module, $cram_r0) {/** @license MIT License (c) copyright 2014 original authors */
 /** @author Brian Cavalier */
 /** @author John Hann */
-module.exports = locateFlatPackage;
-
 var path = $cram_r0;
 
-function locateFlatPackage (load) {
-	var options, parts, packageName, moduleName, descriptor, location, ext;
+module.exports = normalizeCjs;
 
-	options = load.metadata.boot;
+var reduceLeadingDots = path.reduceLeadingDots;
 
-	// Note: name should be normalized before it reaches this locate function.
-	parts = load.name.split('/');
-	packageName = parts.shift();
-
-	if (!options.packages) throw new Error('Packages not provided: ' + load.name);
-
-	descriptor = options.packages[packageName];
-	if (!descriptor) throw new Error('Package not found: ' + load.name);
-
-	moduleName = parts.join('/') || descriptor.main;
-	location = descriptor.location;
-	ext = options.defaultExt || '.js';
-
-	// prepend baseUrl
-	if (!path.isAbsUrl(location) && options.baseUrl) {
-		location = path.joinPaths(options.baseUrl, location);
-	}
-
-	return path.joinPaths(location, path.ensureExt(moduleName, ext));
+function normalizeCjs (name, refererName, refererUrl) {
+	return reduceLeadingDots(String(name), refererName || '');
 }
 
 });
@@ -634,11 +631,11 @@ function translateWrapObjectLiteral (load) {
 });
 
 
-;define('boot/pipeline/_boot', ['require', 'exports', 'module', 'boot/pipeline/normalizeCjs', 'boot/pipeline/locateFlatPackage', 'boot/pipeline/locateAsIs', 'boot/pipeline/fetchAsText', 'boot/pipeline/translateAsIs', 'boot/pipeline/translateWrapObjectLiteral', 'boot/pipeline/instantiateNode', 'boot/pipeline/instantiateScript', 'boot/lib/overrideIf', 'boot/lib/partial', 'boot/lib/package', 'boot/lib/beget'], function (require, exports, module, $cram_r0, $cram_r1, $cram_r2, $cram_r3, $cram_r4, $cram_r5, $cram_r6, $cram_r7, $cram_r8, $cram_r9, $cram_r10, $cram_r11) {/** @license MIT License (c) copyright 2014 original authors */
+;define('boot/pipeline/_boot', ['require', 'exports', 'module', 'boot/pipeline/normalizeCjs', 'boot/pipeline/locatePackage', 'boot/pipeline/locateAsIs', 'boot/pipeline/fetchAsText', 'boot/pipeline/translateAsIs', 'boot/pipeline/translateWrapObjectLiteral', 'boot/pipeline/instantiateNode', 'boot/pipeline/instantiateScript', 'boot/lib/overrideIf', 'boot/lib/package', 'boot/lib/beget'], function (require, exports, module, $cram_r0, $cram_r1, $cram_r2, $cram_r3, $cram_r4, $cram_r5, $cram_r6, $cram_r7, $cram_r8, $cram_r9, $cram_r10) {/** @license MIT License (c) copyright 2014 original authors */
 /** @author Brian Cavalier */
 /** @author John Hann */
 var normalizeCjs = $cram_r0;
-var locateFlatPackage = $cram_r1;
+var locatePackage = $cram_r1;
 var locateAsIs = $cram_r2;
 var fetchAsText = $cram_r3;
 var translateAsIs = $cram_r4;
@@ -646,21 +643,22 @@ var translateWrapObjectLiteral = $cram_r5;
 var instantiateNode = $cram_r6;
 var instantiateScript = $cram_r7;
 var overrideIf = $cram_r8;
-var partial = $cram_r9;
-var pkg = $cram_r10;
-var beget = $cram_r11;
+var pkg = $cram_r9;
+var beget = $cram_r10;
 
-module.exports = function (options) {
+module.exports = _bootPipeline;
+
+function _bootPipeline (context) {
 	var modulePipeline, jsonPipeline;
 
-	options = beget(options);
-	if (options.packages) {
-		options.packages = pkg.normalizeCollection(options.packages);
+	context = beget(context);
+	if (context.packages) {
+		context.packages = pkg.normalizeCollection(context.packages);
 	}
 
 	modulePipeline = {
 		normalize: normalizeCjs,
-		locate: withOptions(options, locateFlatPackage),
+		locate: withContext(context, locatePackage),
 		fetch: fetchAsText,
 		translate: translateAsIs,
 		instantiate: instantiateNode
@@ -668,7 +666,7 @@ module.exports = function (options) {
 
 	jsonPipeline = {
 		normalize: normalizeCjs,
-		locate: withOptions(options, locateAsIs),
+		locate: withContext(context, locateAsIs),
 		fetch: fetchAsText,
 		translate: translateWrapObjectLiteral,
 		instantiate: instantiateScript
@@ -680,7 +678,7 @@ module.exports = function (options) {
 			overrideIf(isJsonFile, loader, jsonPipeline);
 		}
 	};
-};
+}
 
 function isBootModule (arg) {
 	var moduleId, packageId;
@@ -704,9 +702,9 @@ function getModuleId (arg) {
 	return typeof arg === 'object' ? arg.name : arg;
 }
 
-function withOptions (options, func) {
+function withContext (context, func) {
 	return function (load) {
-		load.metadata.boot = options;
+		load.metadata.boot = context;
 		return func.call(this, load);
 	};
 }

@@ -1,11 +1,11 @@
-exports.main = displayMetadata;
+module.exports = displayMetadata;
 
 function displayMetadata (context) {
 	write('done! Found the following packages:');
-	write(Object.keys(context.packages));
+	write(JSON.stringify(Object.keys(context.packages), null, '    '), 'pre');
 	console.log(context);
 }
 
-function write (msg) {
-	document.body.appendChild(document.createElement('p')).innerHTML = msg;
+function write (msg, tagType) {
+	document.body.appendChild(document.createElement(tagType || 'p')).innerHTML = msg;
 }
