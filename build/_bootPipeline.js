@@ -1,16 +1,4 @@
 
-;define('boot/pipeline/locateAsIs', ['require', 'exports', 'module'], function (require, exports, module) {/** @license MIT License (c) copyright 2014 original authors */
-/** @author Brian Cavalier */
-/** @author John Hann */
-module.exports = locateAsIs;
-
-function locateAsIs (load) {
-	return load.name;
-}
-
-});
-
-
 ;define('boot/lib/overrideIf', ['require', 'exports', 'module'], function (require, exports, module) {/** @license MIT License (c) copyright 2014 original authors */
 /** @author Brian Cavalier */
 /** @author John Hann */
@@ -46,6 +34,133 @@ function beget (base) {
 	obj = new Begetter();
 	Begetter.prototype = null;
 	return obj;
+}
+
+});
+
+
+;define('boot/pipeline/locateAsIs', ['require', 'exports', 'module'], function (require, exports, module) {/** @license MIT License (c) copyright 2014 original authors */
+/** @author Brian Cavalier */
+/** @author John Hann */
+module.exports = locateAsIs;
+
+function locateAsIs (load) {
+	return load.name;
+}
+
+});
+
+
+;define('boot/lib/fetchText', ['require', 'exports', 'module'], function (require, exports, module) {module.exports = fetchText;
+
+function fetchText (url, callback, errback) {
+	var xhr;
+	xhr = new XMLHttpRequest();
+	xhr.open('GET', url, true);
+	xhr.onreadystatechange = function () {
+		if (xhr.readyState === 4) {
+			if (xhr.status < 400) {
+				callback(xhr.responseText);
+			}
+			else {
+				errback(
+					new Error(
+						'fetchText() failed. url: "' + url
+						+ '" status: ' + xhr.status + ' - ' + xhr.statusText
+					)
+				);
+			}
+		}
+	};
+	xhr.send(null);
+};
+
+});
+
+
+;define('boot/lib/Thenable', ['require', 'exports', 'module'], function (require, exports, module) {/** @license MIT License (c) copyright 2014 original authors */
+/** @author Brian Cavalier */
+/** @author John Hann */
+module.exports = Thenable;
+
+function Thenable (resolver) {
+	var then, nextFulfill, nextReject;
+
+	then = push;
+	resolver(fulfill, reject);
+
+	return {
+		then: function (onFulfill, onReject) {
+			return then(onFulfill, onReject);
+		}
+	};
+
+	function push (onFulfill, onReject) {
+		return new Thenable(function (childFulfill, childReject) {
+			nextFulfill = function (value) {
+				tryBoth(value, onFulfill, onReject)
+					&& tryBoth(value, childFulfill, childReject);
+			};
+			nextReject = function (ex) {
+				tryBoth(ex, onReject, failLoud)
+					 && tryBoth(ex, childReject, failLoud);
+			};
+		});
+	}
+
+	function fulfill (value) {
+		then = fulfiller(value);
+		if (nextFulfill) nextFulfill(value);
+	}
+
+	function reject (ex) {
+		then = rejecter(ex);
+		if (nextReject) nextReject(ex);
+	}
+}
+
+function fulfiller (value) {
+	return function (onFulfill, onReject) {
+		onFulfill(value);
+		return this;
+	};
+}
+
+function rejecter (value) {
+	return function (onFulfill, onReject) {
+		onReject(value);
+		return this;
+	};
+}
+
+function tryBoth (value, first, second) {
+	try {
+		first(value);
+		return true;
+	}
+	catch (ex) {
+		second(ex);
+	}
+}
+
+function failLoud (ex) {
+	throw ex;
+}
+
+
+});
+
+
+;define('boot/lib/addSourceUrl', ['require', 'exports', 'module'], function (require, exports, module) {/** @license MIT License (c) copyright 2014 original authors */
+/** @author Brian Cavalier */
+/** @author John Hann */
+module.exports = addSourceUrl;
+
+function addSourceUrl (url, source) {
+	return source
+		+ '\n/*\n//@ sourceURL='
+		+ url.replace(/\s/g, '%20')
+		+ '\n*/\n';
 }
 
 });
@@ -188,168 +303,6 @@ function splitDirAndFile (url) {
 });
 
 
-;define('boot/lib/fetchText', ['require', 'exports', 'module'], function (require, exports, module) {module.exports = fetchText;
-
-function fetchText (url, callback, errback) {
-	var xhr;
-	xhr = new XMLHttpRequest();
-	xhr.open('GET', url, true);
-	xhr.onreadystatechange = function () {
-		if (xhr.readyState === 4) {
-			if (xhr.status < 400) {
-				callback(xhr.responseText);
-			}
-			else {
-				errback(
-					new Error(
-						'fetchText() failed. url: "' + url
-						+ '" status: ' + xhr.status + ' - ' + xhr.statusText
-					)
-				);
-			}
-		}
-	};
-	xhr.send(null);
-};
-
-});
-
-
-;define('boot/lib/nodeFactory', ['require', 'exports', 'module'], function (require, exports, module) {/** @license MIT License (c) copyright 2014 original authors */
-/** @author Brian Cavalier */
-/** @author John Hann */
-module.exports = nodeFactory;
-
-var nodeEval = new Function(
-	'require', 'exports', 'module', 'global',
-	'eval(arguments[4]);'
-);
-
-var global;
-
-if (typeof global === 'undefined') {
-	global = window;
-}
-
-function nodeFactory (loader, load) {
-	var require, module;
-
-	require = function (id) {
-		var abs, imports;
-		abs = loader.normalize(id, load.name);
-		imports = loader.get(abs);
-		return '__es5Module' in imports ? imports['__es5Module'] : imports;
-	};
-	module = { id: load.name, uri: load.address, exports: {} };
-
-	return function () {
-		// TODO: use loader.global when es6-module-loader implements it
-		var g = global, exports;
-		nodeEval(require, module.exports, module, g, load.source);
-		exports = module.exports;
-		if (typeof exports !== 'object') {
-			exports = {
-				// for real ES6 modules to consume this module
-				'default': exports,
-				// for es5 modules
-				'__es5Module': exports
-			};
-		}
-		return exports;
-	};
-}
-
-});
-
-
-;define('boot/lib/Thenable', ['require', 'exports', 'module'], function (require, exports, module) {/** @license MIT License (c) copyright 2014 original authors */
-/** @author Brian Cavalier */
-/** @author John Hann */
-module.exports = Thenable;
-
-function Thenable (resolver) {
-	var then, nextFulfill, nextReject;
-
-	then = push;
-	resolver(fulfill, reject);
-
-	return {
-		then: function (onFulfill, onReject) {
-			return then(onFulfill, onReject);
-		}
-	};
-
-	function push (onFulfill, onReject) {
-		return new Thenable(function (childFulfill, childReject) {
-			nextFulfill = function (value) {
-				tryBoth(value, onFulfill, onReject)
-					&& tryBoth(value, childFulfill, childReject);
-			};
-			nextReject = function (ex) {
-				tryBoth(ex, onReject, failLoud)
-					 && tryBoth(ex, childReject, failLoud);
-			};
-		});
-	}
-
-	function fulfill (value) {
-		then = fulfiller(value);
-		if (nextFulfill) nextFulfill(value);
-	}
-
-	function reject (ex) {
-		then = rejecter(ex);
-		if (nextReject) nextReject(ex);
-	}
-}
-
-function fulfiller (value) {
-	return function (onFulfill, onReject) {
-		onFulfill(value);
-		return this;
-	};
-}
-
-function rejecter (value) {
-	return function (onFulfill, onReject) {
-		onReject(value);
-		return this;
-	};
-}
-
-function tryBoth (value, first, second) {
-	try {
-		first(value);
-		return true;
-	}
-	catch (ex) {
-		second(ex);
-	}
-}
-
-function failLoud (ex) {
-	throw ex;
-}
-
-
-});
-
-
-;define('boot/lib/addSourceUrl', ['require', 'exports', 'module'], function (require, exports, module) {/** @license MIT License (c) copyright 2014 original authors */
-/** @author Brian Cavalier */
-/** @author John Hann */
-module.exports = addSourceUrl;
-
-function addSourceUrl (url, source) {
-	return source
-		+ '\n/*\n//@ sourceURL='
-		+ url.replace(/\s/g, '%20')
-		+ '\n*/\n';
-}
-
-});
-
-
 ;define('boot/lib/findRequires', ['require', 'exports', 'module'], function (require, exports, module) {/** @license MIT License (c) copyright 2014 original authors */
 /** @author Brian Cavalier */
 /** @author John Hann */
@@ -390,6 +343,54 @@ function findRequires (source) {
 });
 
 
+;define('boot/lib/nodeFactory', ['require', 'exports', 'module'], function (require, exports, module) {/** @license MIT License (c) copyright 2014 original authors */
+/** @author Brian Cavalier */
+/** @author John Hann */
+module.exports = nodeFactory;
+
+var nodeEval = new Function(
+	'require', 'exports', 'module', 'global',
+	'eval(arguments[4]);'
+);
+
+var global;
+
+if (typeof global === 'undefined') {
+	global = window;
+}
+
+function nodeFactory (loader, load) {
+	var source, module, require;
+
+	source = load.source;
+	module = { id: load.name, uri: load.address, exports: {} };
+	require = function (id) {
+		var abs, imports;
+		abs = loader.normalize(id, module.id);
+		imports = loader.get(abs);
+		return '__es5Module' in imports ? imports['__es5Module'] : imports;
+	};
+
+	return function () {
+		// TODO: use loader.global when es6-module-loader implements it
+		var g = global, exports;
+		nodeEval(require, module.exports, module, g, source);
+		exports = module.exports;
+		if (typeof exports !== 'object') {
+			exports = {
+				// for real ES6 modules to consume this module
+				'default': exports,
+				// for es5 modules
+				'__es5Module': exports
+			};
+		}
+		return exports;
+	};
+}
+
+});
+
+
 ;define('boot/lib/globalFactory', ['require', 'exports', 'module'], function (require, exports, module) {/** @license MIT License (c) copyright 2014 original authors */
 /** @author Brian Cavalier */
 /** @author John Hann */
@@ -401,49 +402,6 @@ function globalFactory (loader, load) {
 	return function () {
 		return globalEval(load.source);
 	};
-}
-
-});
-
-
-;define('boot/pipeline/locatePackage', ['require', 'exports', 'module', 'boot/lib/path'], function (require, exports, module, $cram_r0) {/** @license MIT License (c) copyright 2014 original authors */
-/** @author Brian Cavalier */
-/** @author John Hann */
-module.exports = locatePackage;
-
-var path = $cram_r0;
-
-function locatePackage (load) {
-	var options, parts, packageName, moduleName, descriptor, location, ext;
-
-	options = load.metadata.boot;
-
-	// Note: name should be normalized before it reaches this locate function.
-	parts = load.name.split('#');
-	if (parts.length > 1) {
-		packageName = parts.shift(); // this is the package uid
-		parts = load.name.split('/').slice(1); // pull off package name
-	}
-	else {
-		parts = load.name.split('/');
-		packageName = parts.shift();
-	}
-
-	if (!options.packages) throw new Error('Packages not provided: ' + load.name);
-
-	descriptor = options.packages[packageName];
-	if (!descriptor) throw new Error('Package not found: ' + load.name);
-
-	moduleName = parts.join('/') || descriptor.main;
-	location = descriptor.location;
-	ext = options.defaultExt || '.js';
-
-	// prepend baseUrl
-	if (!path.isAbsUrl(location) && options.baseUrl) {
-		location = path.joinPaths(options.baseUrl, location);
-	}
-
-	return path.joinPaths(location, path.ensureExt(moduleName, ext));
 }
 
 });
@@ -484,27 +442,17 @@ function translateAsIs (load) {
 });
 
 
-;define('boot/pipeline/instantiateNode', ['require', 'exports', 'module', 'boot/lib/findRequires', 'boot/lib/nodeFactory'], function (require, exports, module, $cram_r0, $cram_r1) {/** @license MIT License (c) copyright 2014 original authors */
+;define('boot/pipeline/normalizeCjs', ['require', 'exports', 'module', 'boot/lib/path'], function (require, exports, module, $cram_r0) {/** @license MIT License (c) copyright 2014 original authors */
 /** @author Brian Cavalier */
 /** @author John Hann */
-var findRequires = $cram_r0;
-var nodeFactory = $cram_r1;
+var path = $cram_r0;
 
-module.exports = instantiateNode;
+module.exports = normalizeCjs;
 
-function instantiateNode (load) {
-	var factory;
+var reduceLeadingDots = path.reduceLeadingDots;
 
-	load.loader = this;
-	load.deps = findRequires(load.source);
-	factory = nodeFactory(this, load);
-
-	return {
-		deps: load.deps,
-		execute: function () {
-			return new Module(factory.apply(this, arguments));
-		}
-	};
+function normalizeCjs (name, refererName, refererUrl) {
+	return reduceLeadingDots(String(name), refererName || '');
 }
 
 });
@@ -529,17 +477,27 @@ function instantiateScript (load) {
 });
 
 
-;define('boot/pipeline/normalizeCjs', ['require', 'exports', 'module', 'boot/lib/path'], function (require, exports, module, $cram_r0) {/** @license MIT License (c) copyright 2014 original authors */
+;define('boot/pipeline/instantiateNode', ['require', 'exports', 'module', 'boot/lib/findRequires', 'boot/lib/nodeFactory'], function (require, exports, module, $cram_r0, $cram_r1) {/** @license MIT License (c) copyright 2014 original authors */
 /** @author Brian Cavalier */
 /** @author John Hann */
-var path = $cram_r0;
+var findRequires = $cram_r0;
+var nodeFactory = $cram_r1;
 
-module.exports = normalizeCjs;
+module.exports = instantiateNode;
 
-var reduceLeadingDots = path.reduceLeadingDots;
+function instantiateNode (load) {
+	var factory;
 
-function normalizeCjs (name, refererName, refererUrl) {
-	return reduceLeadingDots(String(name), refererName || '');
+	load.loader = this;
+	load.deps = findRequires(load.source);
+	factory = nodeFactory(this, load);
+
+	return {
+		deps: load.deps,
+		execute: function () {
+			return new Module(factory.apply(this, arguments));
+		}
+	};
 }
 
 });
@@ -610,6 +568,49 @@ function fromObject (obj, name) {
 		location: obj.location || '',
 		name: obj.name || name
 	};
+}
+
+});
+
+
+;define('boot/pipeline/locatePackage', ['require', 'exports', 'module', 'boot/lib/path'], function (require, exports, module, $cram_r0) {/** @license MIT License (c) copyright 2014 original authors */
+/** @author Brian Cavalier */
+/** @author John Hann */
+module.exports = locatePackage;
+
+var path = $cram_r0;
+
+function locatePackage (load) {
+	var options, parts, packageName, moduleName, descriptor, location, ext;
+
+	options = load.metadata.boot;
+
+	// Note: name should be normalized before it reaches this locate function.
+	parts = load.name.split('#');
+	if (parts.length > 1) {
+		packageName = parts.shift(); // this is the package uid
+		parts = load.name.split('/').slice(1); // pull off package name
+	}
+	else {
+		parts = load.name.split('/');
+		packageName = parts.shift();
+	}
+
+	if (!options.packages) throw new Error('Packages not provided: ' + load.name);
+
+	descriptor = options.packages[packageName];
+	if (!descriptor) throw new Error('Package not found: ' + load.name);
+
+	moduleName = parts.join('/') || descriptor.main;
+	location = descriptor.location;
+	ext = options.defaultExt || '.js';
+
+	// prepend baseUrl
+	if (!path.isAbsUrl(location) && options.baseUrl) {
+		location = path.joinPaths(options.baseUrl, location);
+	}
+
+	return path.joinPaths(location, path.ensureExt(moduleName, ext));
 }
 
 });
