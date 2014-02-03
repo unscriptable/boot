@@ -9,21 +9,14 @@ var locatePackage = require('./locatePackage');
 var fetchAsText = require('./fetchAsText');
 var translateAsIs = require('./translateAsIs');
 var instantiateNode = require('./instantiateNode');
+var instantiateAmd = require('./instantiateAmd');
 var overrideIf = require('../lib/overrideIf');
+var metadata = require('../lib/metadata');
 
 module.exports = pipelineFromMetadata;
 
 function pipelineFromMetadata (context) {
-	var uid, descr, name, moduleType, pipeline;
-
-	// loop through package descriptors
-//	for (uid in context.packages) {
-//		descr = context.packages[uid];
-//		name = descr.name;
-//		uid = desc.uid; // key could be name instead of uid
-//		moduleType = descr.moduleType;
-//		// TODO: associate uid with pipeline methods for amd, node, etc.
-//	}
+	var pipeline;
 
 	pipeline = {
 		normalize: createNormalizer(
@@ -33,8 +26,7 @@ function pipelineFromMetadata (context) {
 		locate: withContext(context, locatePackage),
 		fetch: fetchAsText,
 		translate: translateAsIs,
-		// TODO: this needs to sniff for moduleType and pick the correct one
-		instantiate: instantiateNode
+		instantiate: instantiateNodeOrAmd
 	};
 
 	return {
@@ -73,4 +65,15 @@ function withContext (context, func) {
 		load.metadata.boot = context;
 		return func.call(this, load);
 	};
+}
+
+function instantiateNodeOrAmd (load) {
+	// TODO: find a way to pre-compute the moduleType. this is inefficient.
+	var pkg = metadata.findPackage(load.metadata.boot.packages, load.name);
+	if (pkg.moduleType === 'amd') {
+		return instantiateAmd.call(this, load);
+	}
+	else {
+		return instantiateNode.call(this, load);
+	}
 }

@@ -7,14 +7,14 @@ var nodeFactory = require('../lib/nodeFactory');
 module.exports = instantiateNode;
 
 function instantiateNode (load) {
-	var factory;
+	var loader, deps, factory;
 
-	load.loader = this;
-	load.deps = findRequires(load.source);
-	factory = nodeFactory(this, load);
+	loader = load.metadata.boot.loader;
+	deps = findRequires(load.source);
+	factory = nodeFactory(loader, load);
 
 	return {
-		deps: load.deps,
+		deps: deps,
 		execute: function () {
 			return new Module(factory.apply(this, arguments));
 		}
