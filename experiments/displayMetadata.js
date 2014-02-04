@@ -1,6 +1,6 @@
 var formatPackages = require('./formatPackages');
 
-var when = require('when');
+var callbacks = require('when/callbacks');
 var domReady = require('curl/src/curl/domReady');
 var rest = require('rest');
 
@@ -15,7 +15,7 @@ function displayMetadata (context) {
 }
 
 function write (msg, tagType) {
-	domReady(function () {
+	callbacks.call(domReady).then(function () {
 		var doc = document;
 		var body = doc.body;
 		body.appendChild(doc.createElement(tagType || 'p')).innerHTML = msg;
