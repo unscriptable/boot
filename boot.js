@@ -49,7 +49,7 @@ var Loader;
 					});
 				}
 			}(loader.import, boot.legacyGetter(loader)));
-			loader.get = boot.legacyGetter(loader);
+//			loader.get = boot.legacyGetter(loader);
 			// END HACK
 			loader.import(options.bootMain).then(go, failLoudly);
 		}
