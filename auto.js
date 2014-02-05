@@ -4,6 +4,7 @@
 var metadata = require('./lib/metadata');
 var fromMetadata = require('./pipeline/fromMetadata');
 var beget = require('./lib/beget');
+var path = require('./lib/path');
 
 module.exports = {
 	main: autoConfigure
@@ -26,18 +27,11 @@ function autoConfigure (context) {
 	Promise.all(processors).then(done, logError);
 
 	function done (metadatas) {
-		configureLoader(context);
-		var i, meta, mainModule;
-		for (i = 0; i < metadatas.length; i++) {
-			meta = metadatas[i];
-			if (meta && meta.main) {
-				// TODO: implement main modules
-				mainModule = meta.name + '/' + meta.main;
-				return runMain(context, mainModule);
-			}
-		}
-		// TODO: if no main modules found, look for one in a conventional place
-		// TODO: warn if multiple main modules were found, but only the first was run
+		return configureLoader(context)
+			.then(initBootExtensions)
+			.then(function () {
+				return initApplication(context, metadatas);
+			});
 	}
 
 	function logError (ex) {
@@ -47,9 +41,59 @@ function autoConfigure (context) {
 }
 
 function configureLoader (context) {
+	// TODO: fix boot's package descriptor elsewhere!
+	context.packages.boot = require('boot/lib/package').normalizeDescriptor(context.packages.boot);
+	context.packages.boot.uid = context.packages.boot.name = 'boot';
 	var pipeline = fromMetadata(context);
 	pipeline.applyTo(context.loader);
-	return context;
+	return Promise.resolve(context);
+}
+
+function initBootExtensions (context) {
+	var seen, name, pkg, promises;
+	seen = {};
+	promises = [];
+	for (name in context.packages) {
+		pkg = context.packages[name];
+		// TODO: remove this when the boot package is no longer a string
+		if (typeof pkg !== 'object') continue;
+		// TODO: remove this if we no longer have versioned and unversioned packages
+		if (!(pkg.name in seen)) {
+			seen[pkg.name] = true;
+			if (pkg.metadata && pkg.metadata.boot) {
+				promises.push(
+					runBootExtension(context, path.joinPaths(pkg.name, pkg.metadata.boot))
+				);
+			}
+		}
+	}
+	return Promise.all(promises).then(function () { return context; });
+}
+
+function runBootExtension (context, bootExtension) {
+	// friggin es6 loader doesn't run normalize on dynamic import!!!!
+	var normalized = context.loader.normalize(bootExtension, '');
+	return context.loader.import(normalized)
+		.then(function (extension) {
+			if (extension.pipeline) {
+				extension.pipeline(context).applyTo(context.loader);
+			}
+		});
+}
+
+function initApplication (context, metadatas) {
+	var i, meta, mainModule;
+	for (i = 0; i < metadatas.length; i++) {
+		meta = metadatas[i];
+		if (meta && meta.main) {
+			// TODO: implement main modules
+			mainModule = path.joinPaths(meta.name, meta.main);
+			return runMain(context, mainModule)
+				.then(function () { return context; });
+		}
+	}
+	// TODO: if no main modules found, look for one in a conventional place
+	// TODO: warn if multiple main modules were found, but only the first was run
 }
 
 function runMain (context, mainModule) {
@@ -57,9 +101,6 @@ function runMain (context, mainModule) {
 	var normalized = context.loader.normalize(mainModule, '');
 	return context.loader.import(normalized)
 		.then(function (main) {
-			// TODO: get function-modules working
-			// and change this next part to assume a function-module
-			// if (typeof main === 'function') main(context);
 			if (typeof main === 'function') {
 				main(beget(context));
 			}
