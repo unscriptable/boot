@@ -3,12 +3,17 @@ var formatPackages = require('./formatPackages');
 var callbacks = require('when/callbacks');
 var domReady = require('curl/src/curl/domReady');
 var rest = require('rest');
+var template = require('./template.html');
 
 module.exports = displayMetadata;
 
 function displayMetadata (context) {
-	write('This module\'s uri is "' + module.uri + '".');
-	write('This module\'s id is "' + module.id + '".');
+	var text = template.replace(/\$\{([^\}]+)\}/g, function (m, token) {
+		return module[token];
+	});
+	write(text, 'div');
+//	write('This module\'s uri is "' + module.uri + '".');
+//	write('This module\'s id is "' + module.id + '".');
 	write('Configured the following packages:');
 	write(formatPackages(context.packages), 'pre');
 	console.log(context);
