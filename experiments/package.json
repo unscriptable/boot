@@ -38,6 +38,7 @@
     }
   ],
   "dependencies": {
-    "rest": "~1.0.0"
+    "rest": "~1.0.0",
+    "boot-byext": "0.0.1"
   }
 }
