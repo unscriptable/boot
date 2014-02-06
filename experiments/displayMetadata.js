@@ -12,8 +12,6 @@ function displayMetadata (context) {
 		return module[token];
 	});
 	write(text, 'div');
-//	write('This module\'s uri is "' + module.uri + '".');
-//	write('This module\'s id is "' + module.id + '".');
 	write('Configured the following packages:');
 	write(formatPackages(context.packages), 'pre');
 	console.log(context);
