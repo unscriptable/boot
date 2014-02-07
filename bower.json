@@ -1,0 +1,13 @@
+{
+  "name": "boot",
+  "homepage": "https://github.com/unscriptable/boot",
+  "_release": "a3534e412e",
+  "_resolution": {
+    "type": "branch",
+    "branch": "master",
+    "commit": "a3534e412e2cb7ef047f41a271ddb7141430b475"
+  },
+  "_source": "git@github.com:unscriptable/boot.git",
+  "_target": "*",
+  "_originalSource": "git@github.com:unscriptable/boot.git"
+}

@@ -22,11 +22,18 @@ function autoConfigure (context) {
 	processors = [];
 
 	for (i = 0; i < howMany; i++) {
-		processors.push(metadata.crawl(context, urls[i]));
+		processors.push(metadata.crawl(context, urls[i]).then(void 0, function(e) {
+			console.error(e);
+			console.error(e.stack);
+			return void 0;
+		}));
 	}
 	Promise.all(processors).then(done, logError);
 
 	function done (metadatas) {
+		metadatas = metadatas.filter(function(x) {
+			return x !== void 0;
+		});
 		return configureLoader(context)
 			.then(initBootExtensions)
 			.then(function () {
@@ -75,8 +82,16 @@ function runBootExtension (context, bootExtension) {
 	var normalized = context.loader.normalize(bootExtension, '');
 	return context.loader.import(normalized)
 		.then(function (extension) {
+			if(typeof extension === 'function') {
+				return extension(context);
+			}
+
 			if (extension.pipeline) {
 				extension.pipeline(context).applyTo(context.loader);
+			}
+
+			if(extension.init) {
+				return extension.init(context);
 			}
 		});
 }
