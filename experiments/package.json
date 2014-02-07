@@ -39,6 +39,6 @@
   ],
   "dependencies": {
     "rest": "~1.0.0",
-    "boot-byext": "0.0.1"
+    "boot-text-byext": "0.0.1"
   }
 }
