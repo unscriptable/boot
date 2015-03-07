@@ -2,20 +2,19 @@ var formatPackages = require('./formatPackages');
 
 var callbacks = require('when/callbacks');
 var domReady = require('curl/src/curl/domReady');
-var rest = require('rest');
-var template = require('./template.html');
 
 module.exports = displayMetadata;
 
 function displayMetadata (context) {
-	var text = template.replace(/\$\{([^\}]+)\}/g, function (m, token) {
-		return module[token];
-	});
-	write(text, 'div');
+	writeModuleInfo();
 	write('Configured the following packages:');
 	write(formatPackages(context.packages), 'pre');
 	console.log(context);
 }
+
+//function writeModuleInfo () {
+//	write('Module: ' + module.id + ', ' + module.uri, 'div');
+//}
 
 function write (msg, tagType) {
 	callbacks.call(domReady).then(function () {
@@ -24,3 +23,13 @@ function write (msg, tagType) {
 		body.appendChild(doc.createElement(tagType || 'p')).innerHTML = msg;
 	});
 }
+
+var template = require('./template.html');
+function writeModuleInfo () {
+	var text;
+	text = template.replace(/\$\{([^\}]+)\}/g, function (m, token) {
+		return module[token];
+	});
+	write(text, 'div');
+}
+
